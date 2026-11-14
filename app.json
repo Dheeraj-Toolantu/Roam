@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "ROAM 2.0",
+    "slug": "roam",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/roam-icon.png",
+    "scheme": "roam",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "app.roam.mobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ROAM records your journey route, cities and places while a journey is active. Tracking is always visible and can be paused.",
+        "NSCameraUsageDescription": "ROAM uses the camera to capture travel photos and videos for your journey.",
+        "NSPhotoLibraryUsageDescription": "ROAM lets you add existing photos and videos to your journeys.",
+        "NSMicrophoneUsageDescription": "ROAM records audio with your travel videos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0F2C",
+        "foregroundImage": "./assets/images/roam-adaptive-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.roam.mobile",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/roam-favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0F2C",
+          "image": "./assets/images/roam-splash.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ROAM records your journey route, cities and places while a journey is active."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ROAM lets you add existing photos and videos to your journeys.",
+          "cameraPermission": "ROAM uses the camera to capture travel moments."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    },
+    "backgroundColor": "#0A0F2C"
+  }
+}

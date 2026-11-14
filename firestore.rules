@@ -1,0 +1,343 @@
+rules_version = '2';
+
+// ROAM 2.0 – Cloud Firestore security rules.
+// Access control is enforced here (server side), not only in the app (BRD §16.3, risk "Complex group permissions").
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(me())); }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function notSuspended() {
+      let path = /databases/$(database)/documents/users/$(me());
+      return !exists(path) || !(get(path).data.get('suspended', false));
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function changed() { return incoming().diff(existing()).affectedKeys(); }
+    function onlyChanged(keys) { return changed().hasOnly(keys); }
+    function isNowish(t) { return t is timestamp && t > request.time - duration.value(10, 'm') && t < request.time + duration.value(10, 'm'); }
+    function validVisibility(v) { return v in ['private', 'followers', 'crew', 'public']; }
+    function follows(authorId) {
+      return exists(/databases/$(database)/documents/users/$(authorId)/followers/$(me()));
+    }
+    function group(gid) { return get(/databases/$(database)/documents/groups/$(gid)).data; }
+    function isMember(gid) { return signedIn() && me() in group(gid).memberIds; }
+    function isGroupAdmin(gid) { return signedIn() && me() in group(gid).adminIds; }
+
+    // ---------- admins (managed from the console / Admin SDK only) ----------
+    match /admins/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow write: if false;
+    }
+
+    // ---------- users & profiles ----------
+    match /users/{uid} {
+      // Public profiles are readable by any signed-in user; private ones only by the owner,
+      // their approved followers and admins.
+      allow read: if signedIn() && (
+        me() == uid || resource.data.visibility == 'public' || follows(uid) || isAdmin()
+      );
+      allow create: if signedIn() && me() == uid
+        && incoming().uid == uid
+        && incoming().displayName is string && incoming().displayName.size() > 0 && incoming().displayName.size() <= 60
+        && incoming().visibility in ['public', 'private']
+        && !('suspended' in incoming()) && !('role' in incoming())
+        && incoming().followersCount == 0 && incoming().followingCount == 0;
+      // Owner edits their own profile but can never change moderation fields or forge counters.
+      allow update: if signedIn() && (
+        (me() == uid
+          && !changed().hasAny(['uid', 'suspended', 'role', 'followersCount', 'followingCount'])
+          && incoming().visibility in ['public', 'private'])
+        // follower counters move by exactly ±1 alongside the follow edge
+        || (me() != uid && onlyChanged(['followersCount'])
+            && (incoming().followersCount == existing().followersCount + 1 ||
+                incoming().followersCount == existing().followersCount - 1))
+        || (me() == uid && onlyChanged(['followingCount']))
+        || (isAdmin() && onlyChanged(['suspended', 'suspendedReason']))
+      );
+      allow delete: if signedIn() && me() == uid;
+
+      match /followers/{followerId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && me() == followerId && followerId != uid;
+        allow delete: if signedIn() && (me() == followerId || me() == uid);
+      }
+      match /following/{targetId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && me() == uid && targetId != uid;
+      }
+      match /blocked/{targetId} {
+        allow read, write: if signedIn() && me() == uid;
+      }
+      match /saved/{postId} {
+        allow read, write: if signedIn() && me() == uid;
+      }
+      // In-app notifications: anyone signed in may notify another user, but only as themselves.
+      match /notifications/{nid} {
+        allow read, delete: if signedIn() && me() == uid;
+        allow update: if signedIn() && me() == uid && onlyChanged(['read']);
+        allow create: if signedIn() && incoming().fromUid == me()
+          && incoming().type is string && incoming().text is string && incoming().text.size() <= 280
+          && incoming().read == false;
+      }
+    }
+
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && incoming().uid == me() && name.matches('^[a-z0-9_.]{3,20}$');
+      allow delete: if signedIn() && existing().uid == me();
+    }
+
+    // ---------- personal journeys (private by default) ----------
+    match /journeys/{jid} {
+      function canReadJourney() {
+        return signedIn() && (
+          resource.data.ownerId == me()
+          || resource.data.visibility == 'public'
+          || (resource.data.visibility == 'followers' && follows(resource.data.ownerId))
+          || (resource.data.visibility == 'crew' && resource.data.groupId is string && isMember(resource.data.groupId))
+          || isAdmin()
+        );
+      }
+      allow read: if canReadJourney();
+      allow create: if signedIn() && notSuspended()
+        && incoming().ownerId == me()
+        && incoming().status == 'active'
+        && incoming().type in ['solo', 'group']
+        && validVisibility(incoming().visibility)
+        && (incoming().type == 'solo' || isMember(incoming().groupId));
+      allow update: if signedIn() && existing().ownerId == me() && incoming().ownerId == me()
+        && incoming().status in ['active', 'paused', 'completed']
+        && validVisibility(incoming().visibility);
+      allow delete: if signedIn() && existing().ownerId == me();
+
+      // Precise GPS history is ALWAYS owner-only (BRD §5.4, BR-006, BR-014).
+      match /locations/{lid} {
+        allow read, write: if signedIn() && get(/databases/$(database)/documents/journeys/$(jid)).data.ownerId == me();
+      }
+      match /activities/{aid} {
+        function journeyOwner() { return get(/databases/$(database)/documents/journeys/$(jid)).data.ownerId; }
+        allow read: if signedIn() && (journeyOwner() == me() || resource.data.visibility == 'public' || isAdmin());
+        allow create, update: if signedIn() && journeyOwner() == me() && validVisibility(incoming().visibility);
+        allow delete: if signedIn() && journeyOwner() == me();
+      }
+    }
+
+    // ---------- social posts ----------
+    match /posts/{pid} {
+      function canReadPost(p) {
+        return p.authorId == me()
+          || p.visibility == 'public'
+          || (p.visibility == 'followers' && follows(p.authorId))
+          || (p.visibility == 'crew' && p.groupId is string && isMember(p.groupId))
+          || isAdmin();
+      }
+      allow read: if signedIn() && canReadPost(resource.data);
+      allow create: if signedIn() && notSuspended()
+        && incoming().authorId == me()
+        && validVisibility(incoming().visibility)
+        && (incoming().visibility != 'crew' || isMember(incoming().groupId))
+        && incoming().likesCount == 0 && incoming().commentsCount == 0
+        && incoming().text is string && incoming().text.size() <= 2000
+        && isNowish(incoming().createdAt);
+      allow update: if signedIn() && (
+        (existing().authorId == me() && onlyChanged(['text', 'visibility']) && validVisibility(incoming().visibility))
+        || (canReadPost(existing()) && onlyChanged(['likesCount'])
+            && (incoming().likesCount == existing().likesCount + 1 || incoming().likesCount == existing().likesCount - 1))
+        || (canReadPost(existing()) && onlyChanged(['commentsCount'])
+            && (incoming().commentsCount == existing().commentsCount + 1 || incoming().commentsCount == existing().commentsCount - 1))
+      );
+      allow delete: if signedIn() && (existing().authorId == me() || isAdmin());
+
+      match /likes/{uid} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && me() == uid;
+      }
+      match /comments/{cid} {
+        allow read: if signedIn() && canReadPost(get(/databases/$(database)/documents/posts/$(pid)).data);
+        allow create: if signedIn() && notSuspended() && incoming().authorId == me()
+          && incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 1000
+          && canReadPost(get(/databases/$(database)/documents/posts/$(pid)).data);
+        allow delete: if signedIn() && (existing().authorId == me() || isAdmin());
+      }
+    }
+
+    // ---------- moderation ----------
+    match /reports/{rid} {
+      allow create: if signedIn() && incoming().reporterId == me()
+        && incoming().targetType in ['post', 'user', 'comment', 'groupActivity']
+        && incoming().status == 'open';
+      allow read, update: if isAdmin();
+    }
+
+    // ---------- Live World presence: opt-in, city-level only ----------
+    match /presence/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == uid
+        && (!('lat' in incoming()) && !('lng' in incoming()))
+        && incoming().keys().hasOnly(['city', 'cityId', 'country', 'active', 'displayName', 'updatedAt']);
+      allow delete: if signedIn() && me() == uid;
+    }
+
+    // ---------- cinematic videos ----------
+    match /travelVideos/{vid} {
+      allow read: if signedIn() && (
+        resource.data.ownerId == me()
+        || resource.data.visibility == 'public'
+        || (resource.data.groupId is string && isMember(resource.data.groupId))
+        || isAdmin()
+      );
+      allow create: if signedIn() && incoming().ownerId == me()
+        && (!('groupId' in incoming()) || isMember(incoming().groupId));
+      allow update, delete: if signedIn() && existing().ownerId == me();
+    }
+
+    // ---------- ROAM CREW ----------
+    match /groupCodes/{code} {
+      // Invite links / QR codes resolve to a group id. Codes are random and unguessable.
+      allow get: if signedIn();
+      allow create: if signedIn() && isGroupAdmin(incoming().groupId);
+      allow delete: if signedIn() && isGroupAdmin(existing().groupId);
+    }
+
+    match /invitations/{iid} {
+      // Deterministic id `${groupId}_${toUid}` so rules can check it and duplicates are impossible.
+      allow read: if signedIn() && (existing().toUid == me() || existing().fromUid == me() || isMember(existing().groupId));
+      allow create: if signedIn() && incoming().fromUid == me()
+        && isMember(incoming().groupId)
+        && iid == incoming().groupId + '_' + incoming().toUid
+        && incoming().status == 'pending';
+      allow update: if signedIn() && existing().toUid == me()
+        && onlyChanged(['status', 'respondedAt'])
+        && incoming().status in ['accepted', 'rejected'];
+      allow delete: if signedIn() && (existing().fromUid == me() || isGroupAdmin(existing().groupId));
+    }
+
+    match /groups/{gid} {
+      function joiningSelf() {
+        return changed().hasOnly(['memberIds', 'memberNames', 'joinCode', 'updatedAt'])
+          && incoming().memberIds.toSet().difference(existing().memberIds.toSet()) == [me()].toSet()
+          && existing().memberIds.toSet().difference(incoming().memberIds.toSet()).size() == 0;
+      }
+      function hasInvite() {
+        let inv = /databases/$(database)/documents/invitations/$(gid + '_' + me());
+        return exists(inv) && get(inv).data.status in ['pending', 'accepted'];
+      }
+      function hasValidCode() {
+        return 'joinCode' in incoming() && incoming().joinCode is string
+          && exists(/databases/$(database)/documents/groupCodes/$(incoming().joinCode))
+          && get(/databases/$(database)/documents/groupCodes/$(incoming().joinCode)).data.groupId == gid;
+      }
+      function leavingSelf() {
+        return changed().hasOnly(['memberIds', 'adminIds', 'updatedAt', 'videoExcludedUids'])
+          && existing().memberIds.toSet().difference(incoming().memberIds.toSet()) == [me()].toSet()
+          && incoming().memberIds.toSet().difference(existing().memberIds.toSet()).size() == 0
+          && !(me() in incoming().adminIds);
+      }
+
+      allow read: if signedIn() && (me() in resource.data.memberIds || isAdmin());
+      allow create: if signedIn() && notSuspended()
+        && incoming().ownerId == me()
+        && incoming().memberIds == [me()]
+        && incoming().adminIds == [me()]
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 60
+        && incoming().visibility in ['private', 'public'];
+      allow update: if signedIn() && (
+        // admins edit details and manage membership
+        (me() in existing().adminIds && me() in incoming().adminIds && incoming().ownerId == existing().ownerId
+          && existing().ownerId in incoming().memberIds && existing().ownerId in incoming().adminIds
+          && incoming().adminIds.toSet().difference(incoming().memberIds.toSet()).size() == 0)
+        // members opt in/out of the group video (their own uid only)
+        || (me() in existing().memberIds && onlyChanged(['videoExcludedUids'])
+            && incoming().videoExcludedUids.toSet().difference(existing().get('videoExcludedUids', []).toSet()).union(
+               existing().get('videoExcludedUids', []).toSet().difference(incoming().videoExcludedUids.toSet())).hasOnly([me()]))
+        // invited users or invite-code holders add only themselves
+        || (!(me() in existing().memberIds) && joiningSelf() && (hasInvite() || hasValidCode()))
+        // any member may leave; financial records are kept (BR-012)
+        || (me() in existing().memberIds && me() != existing().ownerId && leavingSelf())
+      );
+      allow delete: if signedIn() && existing().ownerId == me();
+
+      // Shared group timeline – visible to members only (BR-005, BR-007)
+      match /timeline/{tid} {
+        allow read: if isMember(gid);
+        allow create: if isMember(gid) && notSuspended() && incoming().authorId == me()
+          && incoming().commentsCount == 0 && isNowish(incoming().createdAt);
+        allow update: if isMember(gid) && (
+          (existing().authorId == me() && !changed().hasAny(['authorId', 'createdAt']))
+          || (onlyChanged(['commentsCount']) && incoming().commentsCount == existing().commentsCount + 1)
+        );
+        allow delete: if isMember(gid) && (existing().authorId == me() || isGroupAdmin(gid));
+
+        match /comments/{cid} {
+          allow read: if isMember(gid);
+          allow create: if isMember(gid) && incoming().authorId == me()
+            && incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 1000;
+          allow delete: if isMember(gid) && existing().authorId == me();
+        }
+      }
+
+      // ROAM SPLIT expenses. Amounts are integer minor units. The Cloud Function
+      // re-validates allocations (sum == total) and writes the audit log.
+      match /expenses/{eid} {
+        function validExpense(e) {
+          return e.amount is int && e.amount > 0 && e.amount <= 100000000000
+            && e.payerId in group(gid).memberIds
+            && e.participants is map && e.participants.size() > 0
+            && e.participants.keys().hasOnly(group(gid).memberIds)
+            && e.title is string && e.title.size() > 0 && e.title.size() <= 80
+            && e.splitMethod in ['equal', 'unequal', 'percentage', 'selective', 'personal']
+            && e.personal is bool
+            && (!e.personal || (e.participants.keys().hasOnly([e.payerId]) && e.payerId == me()))
+            && e.status in ['active', 'deleted'];
+        }
+        allow read: if isMember(gid);
+        allow create: if isMember(gid) && notSuspended()
+          && incoming().createdBy == me()
+          && incoming().validation == 'pending'
+          && incoming().status == 'active'
+          && validExpense(incoming());
+        // Creator (or group admin) may edit; edits go back to 'pending' so the server re-validates.
+        // Expenses are soft-deleted only, preserving the audit trail.
+        allow update: if isMember(gid)
+          && (existing().createdBy == me() || isGroupAdmin(gid))
+          && incoming().createdBy == existing().createdBy
+          && incoming().validation == 'pending'
+          && validExpense(incoming());
+        allow delete: if false;
+      }
+
+      match /settlements/{sid} {
+        allow read: if isMember(gid);
+        // Either party records a payment; only the receiver can confirm it happened.
+        allow create: if isMember(gid)
+          && incoming().recordedBy == me()
+          && (incoming().fromUid == me() || incoming().toUid == me())
+          && incoming().fromUid != incoming().toUid
+          && incoming().fromUid in group(gid).memberIds && incoming().toUid in group(gid).memberIds
+          && incoming().amount is int && incoming().amount > 0
+          && incoming().status == 'recorded';
+        allow update: if isMember(gid)
+          && existing().status == 'recorded'
+          && existing().toUid == me()
+          && onlyChanged(['status', 'confirmedAt', 'confirmedBy'])
+          && incoming().status in ['confirmed', 'rejected']
+          && incoming().confirmedBy == me();
+        allow delete: if false;
+      }
+
+      // Written by Cloud Functions (Admin SDK bypasses rules); read-only for members.
+      match /audit/{aid} {
+        allow read: if isMember(gid);
+        allow write: if false;
+      }
+      match /meta/{doc} {
+        allow read: if isMember(gid);
+        allow write: if false;
+      }
+    }
+  }
+}
