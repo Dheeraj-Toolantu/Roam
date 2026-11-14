@@ -179,6 +179,23 @@ describe('posts & visibility (AC-007)', () => {
     await assertSucceeds(getDoc(doc(as('mod'), 'reports/r1')));
     await assertSucceeds(deleteDoc(doc(as('mod'), 'posts/p1')));
   });
+
+  it('the post audience can list likers; likes carry only name/photo; private posts stay private', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'posts/pub'), { ...post('alice', 'public'), createdAt: Timestamp.now() });
+      await setDoc(doc(db, 'posts/priv'), { ...post('alice', 'private'), createdAt: Timestamp.now() });
+    });
+    await assertSucceeds(setDoc(doc(as('bob'), 'posts/pub/likes/bob'), { at: serverTimestamp(), name: 'Bob', username: 'bob', photoURL: null }));
+    await assertFails(setDoc(doc(as('bob'), 'posts/pub/likes/carol'), { at: serverTimestamp(), name: 'Carol' }));
+    await assertFails(setDoc(doc(as('carol'), 'posts/pub/likes/carol'), { at: serverTimestamp(), name: 'Carol', isAdmin: true }));
+    await assertFails(setDoc(doc(as('carol'), 'posts/pub/likes/carol'), { at: serverTimestamp(), name: 'x'.repeat(200) }));
+    await assertSucceeds(setDoc(doc(as('carol'), 'posts/pub/likes/carol'), { at: serverTimestamp() }));
+    await assertSucceeds(getDocs(collection(as('alice'), 'posts/pub/likes')));
+    await assertSucceeds(getDocs(collection(as('eve'), 'posts/pub/likes')));
+    await assertSucceeds(getDocs(collection(as('alice'), 'posts/priv/likes')));
+    await assertFails(getDocs(collection(as('eve'), 'posts/priv/likes')));
+  });
+
 });
 
 describe('ROAM CREW membership (BR-004, BR-005, BR-007)', () => {

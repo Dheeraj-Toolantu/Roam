@@ -4,7 +4,10 @@
  * third-party music licensing is needed (BRD §8: "authorised music").
  */
 
-export type TrackId = 'wanderlust' | 'sunset' | 'mountain' | 'none';
+/** 'custom' = a song the user picked from their device (played from the file, not synthesised). */
+export type TrackId = 'wanderlust' | 'sunset' | 'mountain' | 'none' | 'custom';
+
+export const MAX_CUSTOM_MUSIC_BYTES = 25 * 1024 * 1024;
 
 export const TRACKS: { id: TrackId; label: string; vibe: string; emoji: string }[] = [
   { id: 'wanderlust', label: 'Wanderlust', vibe: 'Upbeat pop', emoji: '🌍' },
@@ -33,7 +36,7 @@ const C = (root: number, q: 'maj' | 'min' | 'maj7' | 'min7' | 'sus2'): Chord => 
   return iv.map((x) => root + x);
 };
 
-const SPECS: Record<Exclude<TrackId, 'none'>, { bpm: number; prog: Chord[]; drums: 'pop' | 'lofi' | 'none'; arp: boolean }> = {
+const SPECS: Record<Exclude<TrackId, 'none' | 'custom'>, { bpm: number; prog: Chord[]; drums: 'pop' | 'lofi' | 'none'; arp: boolean }> = {
   // C – G – Am – F
   wanderlust: { bpm: 112, prog: [C(60, 'maj'), C(55, 'maj'), C(57, 'min'), C(53, 'maj')], drums: 'pop', arp: true },
   // Am7 – Fmaj7 – Cmaj7 – G
@@ -44,7 +47,7 @@ const SPECS: Record<Exclude<TrackId, 'none'>, { bpm: number; prog: Chord[]; drum
 
 /** Build the full note list for `duration` seconds of `track`. */
 export function buildScore(track: TrackId, duration: number): Note[] {
-  if (track === 'none' || duration <= 0) return [];
+  if (track === 'none' || track === 'custom' || duration <= 0) return [];
   const spec = SPECS[track];
   const beat = 60 / spec.bpm;
   const bar = beat * 4;

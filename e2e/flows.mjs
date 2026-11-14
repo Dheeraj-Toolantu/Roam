@@ -35,6 +35,24 @@ await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
 // ---------- helpers ----------
 const results = [];
 let failures = 0;
+/** Test media generated with ffmpeg (a test-pattern clip of `secs` seconds; a short song). */
+const MEDIA_DIR = join((await import('node:os')).tmpdir(), `roam-e2e-media-${Date.now()}`);
+mkdirSync(MEDIA_DIR, { recursive: true });
+async function ffmpeg(args) {
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args]);
+}
+async function makeClip(secs) {
+  const out = join(MEDIA_DIR, `clip${secs}.webm`);
+  await ffmpeg(['-f', 'lavfi', '-i', `testsrc=size=160x120:rate=10`, '-t', String(secs), '-c:v', 'libvpx', '-b:v', '80k', out]);
+  return out;
+}
+async function makeSong() {
+  const out = join(MEDIA_DIR, 'my-road-trip-song.wav');
+  await ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=330:duration=8', '-ac', '1', '-ar', '22050', out]);
+  return out;
+}
+
 /** Asserts a <video> loads its media (≈6 s clip) and its playhead advances when played. */
 async function expectPlayable(page, selector, where) {
   const v = page.locator(selector).first();
@@ -183,7 +201,15 @@ try {
     await a.goto(BASE + '/');
     await a.getByTestId('tab-explore').first().waitFor();
     const errorsBefore = consoleErrors.filter((e) => e.includes('pageerror')).length;
-    for (const [tab, path] of [['explore', '/explore'], ['journeys', '/journeys'], ['crew', '/crew'], ['profile', '/profile'], ['index', '/'], ['capture', '/capture']]) {
+    // Footer holds exactly Home, Explore, +, Journeys, Crew (Profile opens from the Home avatar).
+    const tabIds = await a.locator('[data-testid^="tab-"]').evaluateAll((els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.testid));
+    if (tabIds.join(',') !== 'tab-index,tab-explore,tab-capture,tab-journeys,tab-crew') throw new Error(`unexpected footer tabs: ${tabIds}`);
+    await a.getByTestId('open-profile').filter({ visible: true }).first().tap();
+    await a.waitForURL((u) => new URL(u).pathname === '/profile', { timeout: 10_000 });
+    await a.getByTestId('profile-name').filter({ visible: true }).first().waitFor();
+    await a.getByLabel('Back', { exact: true }).filter({ visible: true }).first().tap();
+    await a.waitForURL((u) => new URL(u).pathname === '/', { timeout: 10_000 });
+    for (const [tab, path] of [['explore', '/explore'], ['journeys', '/journeys'], ['crew', '/crew'], ['index', '/'], ['capture', '/capture']]) {
       await a.getByTestId(`tab-${tab}`).filter({ visible: true }).first().tap();
       await a.waitForURL((u) => new URL(u).pathname === path, { timeout: 10_000 }).catch(() => {
         throw new Error(`tab-${tab} did not navigate to ${path} (at ${a.url()})`);
@@ -198,17 +224,8 @@ try {
   });
 
   await step('Video uploads are limited to 30 seconds (45 s rejected, 6 s uploaded)', async () => {
-    const { execFileSync } = await import('node:child_process');
-    const { tmpdir } = await import('node:os');
-    const dir = join(tmpdir(), `roam-e2e-${Date.now()}`);
-    mkdirSync(dir, { recursive: true });
-    const make = (secs) => {
-      const out = join(dir, `clip${secs}.webm`);
-      execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `testsrc=size=160x120:rate=10`, '-t', String(secs), '-c:v', 'libvpx', '-b:v', '80k', out]);
-      return out;
-    };
-    const long = make(45);
-    const short = make(6);
+    const long = await makeClip(45);
+    const short = await makeClip(6);
     await b.goto(BASE + '/capture');
     await tid(b, 'video-limit-hint').filter({ visible: true }).first().waitFor();
     const pick = async (file) => {
@@ -259,7 +276,7 @@ try {
     await text(a, 'Fort Aguada');
   });
 
-  await step('AC-005 Capture: upload a photo to the active journey and share publicly', async () => {
+  await step('AC-005 Capture: upload a photo and a video to the active journey and share publicly', async () => {
     await tid(a, 'journey-capture').filter({ visible: true }).first().click();
     await tid(a, 'capture-caption').filter({ visible: true }).first().waitFor();
     const [chooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'capture-upload').filter({ visible: true }).first().click()]);
@@ -271,6 +288,17 @@ try {
     await tid(a, 'capture-save').filter({ visible: true }).first().click();
     await a.waitForURL(/journey\//, { timeout: 30_000 });
     await text(a, 'Baga Beach');
+    // …and a short video clip, so the story mixes photos and videos
+    await tid(a, 'journey-capture').filter({ visible: true }).first().click();
+    await tid(a, 'capture-caption').filter({ visible: true }).first().waitFor();
+    const [vchooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'capture-upload').filter({ visible: true }).first().click()]);
+    await vchooser.setFiles(await makeClip(6));
+    await text(a, 'Video ready · 0:06');
+    await tid(a, 'capture-caption').filter({ visible: true }).first().fill('Jet ski at Calangute 🌊');
+    await tid(a, 'capture-place').filter({ visible: true }).first().fill('Calangute');
+    await tid(a, 'capture-save').filter({ visible: true }).first().click();
+    await a.waitForURL(/journey\//, { timeout: 30_000 });
+    await text(a, 'Calangute');
     await shot(a, '06-active-journey');
   });
 
@@ -347,8 +375,12 @@ try {
         w: v.videoWidth, h: v.videoHeight, duration: v.duration, bright, frames,
         audioBytes: v.webkitAudioDecodedByteCount ?? -1,
         mime: el.dataset.mime, bytes: Number(el.dataset.bytes), hasAudio: el.dataset.hasAudio,
+        mediaTotal: Number(el.dataset.mediaTotal), mediaLoaded: Number(el.dataset.mediaLoaded), videos: Number(el.dataset.videos), videosLoaded: Number(el.dataset.videosLoaded),
       };
     });
+    console.log(`    media: ${info.mediaLoaded}/${info.mediaTotal} loaded (videos ${info.videosLoaded}/${info.videos})`);
+    if (info.mediaTotal < 2 || info.mediaLoaded !== info.mediaTotal) throw new Error(`story did not include all photos & videos (${info.mediaLoaded}/${info.mediaTotal})`);
+    if (info.videos < 1 || info.videosLoaded !== info.videos) throw new Error(`story did not include the video clip (${info.videosLoaded}/${info.videos})`);
     console.log(`    video: ${info.mime} ${info.w}x${info.h} ${info.duration.toFixed(1)}s ${(info.bytes / 1024).toFixed(0)}KB audioDecoded=${info.audioBytes}B`);
     if (info.w !== 720 || info.h !== 1280) throw new Error(`bad size ${info.w}x${info.h}`);
     if (!(info.duration > 27 && info.duration < 33)) throw new Error(`bad duration ${info.duration}`);
@@ -361,6 +393,47 @@ try {
     await shot(a, '09b-story-video-ready');
     const [dl] = await Promise.all([a.waitForEvent('download'), tid(a, 'download-story').filter({ visible: true }).first().click()]);
     if (!/^roam-goa-trip-2026\.(mp4|webm)$/.test(dl.suggestedFilename())) throw new Error(`bad file name ${dl.suggestedFilename()}`);
+  });
+
+  await step('Story styles + my own music: 15 s Polaroid story with a song uploaded from the device', async () => {
+    await a.getByText('Make another').filter({ visible: true }).first().click();
+    for (const id of ['classic', 'neon', 'polaroid', 'retro', 'minimal', 'vlog']) await tid(a, `style-${id}`).filter({ visible: true }).first().waitFor();
+    await tid(a, 'export-short').filter({ visible: true }).first().click();
+    await tid(a, 'style-polaroid').filter({ visible: true }).first().click();
+    const [chooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'music-custom').filter({ visible: true }).first().click()]);
+    await chooser.setFiles(await makeSong());
+    await text(a, 'Your song: my-road-trip-song');
+    await shot(a, '09c-styles-and-my-music');
+    await tid(a, 'create-story-video').filter({ visible: true }).first().click();
+    const video = a.locator('[data-testid="story-video"][data-style="polaroid"]').filter({ visible: true }).first();
+    await video.waitFor({ timeout: 90_000 });
+    const info = await video.evaluate(async (v) => {
+      v.muted = true;
+      if (v.readyState < 1) await new Promise((r) => v.addEventListener('loadedmetadata', r, { once: true }));
+      if (!isFinite(v.duration)) {
+        v.currentTime = 1e6;
+        await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+      }
+      v.currentTime = 6;
+      await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+      const cv = document.createElement('canvas');
+      cv.width = 360;
+      cv.height = 640;
+      cv.getContext('2d').drawImage(v, 0, 0, 360, 640);
+      const frame = cv.toDataURL('image/jpeg', 0.8);
+      v.currentTime = 1;
+      await v.play().catch(() => {});
+      await new Promise((r) => setTimeout(r, 1500));
+      v.pause();
+      return { duration: v.duration, audioBytes: v.webkitAudioDecodedByteCount ?? -1, hasAudio: v.dataset.hasAudio, total: Number(v.dataset.mediaTotal), loaded: Number(v.dataset.mediaLoaded), frame };
+    });
+    console.log(`    polaroid+song: ${info.duration.toFixed(1)}s media ${info.loaded}/${info.total} audioDecoded=${info.audioBytes}B`);
+    if (!(info.duration > 13 && info.duration < 17)) throw new Error(`bad duration ${info.duration}`);
+    if (info.hasAudio !== '1' || !(info.audioBytes > 0)) throw new Error('uploaded song is missing from the video');
+    if (info.loaded !== info.total || info.total < 2) throw new Error(`media missing ${info.loaded}/${info.total}`);
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(join(SHOTS, 'story-polaroid-frame.jpg'), Buffer.from(info.frame.split(',')[1], 'base64'));
+    await text(a, '2/2 photos & videos included');
   });
 
   await step('AC-009 Create a crew trip with a budget', async () => {
@@ -480,6 +553,15 @@ try {
     await shot(b, '14-feed');
     await a.goto(BASE + '/notifications');
     await text(a, 'Priya Sharma liked your post');
+    // The author can see who liked the post.
+    await a.getByText('Priya Sharma liked your post').filter({ visible: true }).first().click();
+    await a.locator('[data-testid^="liked-by-"]').filter({ visible: true }).first().click();
+    const sheet = a.getByTestId('likers-sheet').filter({ visible: true }).first();
+    await sheet.waitFor();
+    await sheet.getByText('Priya Sharma').first().waitFor();
+    await sheet.getByText('Liked by 1').first().waitFor();
+    await shot(a, '14b-likers');
+    await a.getByLabel('Close', { exact: true }).filter({ visible: true }).first().click();
   });
 
   await step('Follow a traveller by username (Explore search)', async () => {

@@ -3,7 +3,25 @@
  * Scenes follow BRD §8: intro → route → memories (photos/videos) → summary → outro.
  */
 
-export type StoryTemplate = 'reel' | 'cinematic';
+export type StoryTemplate = 'short' | 'reel' | 'cinematic';
+
+export const STORY_LENGTHS: { id: StoryTemplate; label: string; icon: 'flash' | 'phone-portrait' | 'film' }[] = [
+  { id: 'short', label: 'Quick · 15s', icon: 'flash' },
+  { id: 'reel', label: 'Reel · 30s', icon: 'phone-portrait' },
+  { id: 'cinematic', label: 'Cinematic · 1 min', icon: 'film' },
+];
+
+/** Visual looks for story videos (how scenes, photos and transitions are drawn). */
+export type StoryStyle = 'classic' | 'neon' | 'polaroid' | 'retro' | 'minimal' | 'vlog';
+
+export const STORY_STYLES: { id: StoryStyle; label: string; emoji: string; vibe: string }[] = [
+  { id: 'classic', label: 'Classic', emoji: '🎬', vibe: 'Full-screen Ken Burns' },
+  { id: 'neon', label: 'Neon Nights', emoji: '🌃', vibe: 'Glow, scanlines, cyber' },
+  { id: 'polaroid', label: 'Polaroid', emoji: '📸', vibe: 'Scrapbook instant photos' },
+  { id: 'retro', label: 'Retro Film', emoji: '🎞️', vibe: 'Warm grain & letterbox' },
+  { id: 'minimal', label: 'Minimal', emoji: '🤍', vibe: 'Clean white cards' },
+  { id: 'vlog', label: 'Vlog Cuts', emoji: '⚡', vibe: 'Punchy zooms & flashes' },
+];
 
 export interface StoryMemory {
   url: string | null;
@@ -22,6 +40,8 @@ export type Shot =
   | { kind: 'outro'; start: number; duration: number };
 
 export const TEMPLATE_SPECS: Record<StoryTemplate, { total: number; intro: number; route: number; stats: number; outro: number; minShot: number; maxShot: number; maxVideo: number; maxMemories: number }> = {
+  // 15 s: a single Instagram Story / quick WhatsApp Status
+  short: { total: 15, intro: 1.8, route: 2, stats: 1.8, outro: 1.4, minShot: 1.2, maxShot: 2.5, maxVideo: 3.5, maxMemories: 6 },
   // 30 s fits WhatsApp Status, Instagram/Facebook Stories and Reels
   reel: { total: 30, intro: 3, route: 4, stats: 3.5, outro: 2.5, minShot: 1.8, maxShot: 3.5, maxVideo: 5, maxMemories: 10 },
   cinematic: { total: 60, intro: 5, route: 7, stats: 6, outro: 4, minShot: 2.5, maxShot: 5, maxVideo: 8, maxMemories: 18 },
@@ -31,6 +51,7 @@ export const TEMPLATE_SPECS: Record<StoryTemplate, { total: number; intro: numbe
 export function pickMemories(memories: StoryMemory[], n: number): StoryMemory[] {
   const sorted = [...memories].sort((a, b) => a.time - b.time);
   if (sorted.length <= n) return sorted;
+  if (n <= 1) return n === 1 ? [sorted[0]] : [];
   const out: StoryMemory[] = [];
   for (let i = 0; i < n; i++) out.push(sorted[Math.round((i * (sorted.length - 1)) / (n - 1))]);
   return out;

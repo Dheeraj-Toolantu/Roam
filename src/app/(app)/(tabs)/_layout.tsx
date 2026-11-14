@@ -20,7 +20,6 @@ const TABS: Record<string, { label: string; icon: IconName; iconOn: IconName }> 
   capture: { label: 'Capture', icon: 'add', iconOn: 'add' },
   journeys: { label: 'Journeys', icon: 'map-outline', iconOn: 'map' },
   crew: { label: 'Crew', icon: 'people-outline', iconOn: 'people' },
-  profile: { label: 'Profile', icon: 'person-outline', iconOn: 'person' },
 };
 
 function TabItem({ route, focused, onPress }: { route: { key: string; name: string }; focused: boolean; onPress: () => void }) {
@@ -123,7 +122,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="capture" />
       <Tabs.Screen name="journeys" />
       <Tabs.Screen name="crew" />
-      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

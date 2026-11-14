@@ -60,7 +60,7 @@ export default function Home() {
           <Text style={type.small}>Where to next?</Text>
         </View>
         <IconButton icon="notifications-outline" badge={unread} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications" />
-        <Pressable onPress={() => router.push('/profile')} style={{ marginLeft: 10 }}>
+        <Pressable onPress={() => router.push('/profile')} style={{ marginLeft: 10 }} accessibilityRole="button" accessibilityLabel="My profile" testID="open-profile">
           <Avatar name={me.displayName} uri={me.photoURL} size={42} ring />
         </Pressable>
       </Row>

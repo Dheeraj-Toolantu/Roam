@@ -2,7 +2,7 @@
  * Web Audio synthesiser for ROAM's procedural soundtracks (see logic/musicScore.ts).
  * Used for the in-app story preview and mixed into exported story videos.
  */
-import { buildScore, type Note, type TrackId } from '../logic/musicScore';
+import { buildScore, MAX_CUSTOM_MUSIC_BYTES, type Note, type TrackId } from '../logic/musicScore';
 
 type Ctx = AudioContext;
 
@@ -150,13 +150,125 @@ export function scheduleMusic(ctx: Ctx, track: TrackId, duration: number, destin
   };
 }
 
+/** Play a decoded song (the user's own music) into `destinations`, looped to fill `duration`, with fades. */
+export function scheduleBuffer(ctx: Ctx, buffer: AudioBuffer, duration: number, destinations: AudioNode[]): MusicHandle {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = buffer.duration < duration;
+  const master = ctx.createGain();
+  src.connect(master);
+  destinations.forEach((d) => master.connect(d));
+  const now = ctx.currentTime + 0.05;
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.linearRampToValueAtTime(1, now + 0.6);
+  master.gain.setValueAtTime(1, now + Math.max(0.6, duration - 1.8));
+  master.gain.linearRampToValueAtTime(0.0001, now + duration);
+  src.start(now);
+  src.stop(now + duration + 0.1);
+  return {
+    stop() {
+      try {
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08);
+        setTimeout(() => {
+          try {
+            src.stop();
+          } catch {
+            /* already stopped */
+          }
+          master.disconnect();
+        }, 400);
+      } catch {
+        /* already stopped */
+      }
+    },
+  };
+}
+
+// ---- the user's own music (picked from the device) ----
+export type CustomMusic = { name: string; sizeBytes: number };
+let custom: { file: Blob; url: string; info: CustomMusic } | null = null;
+
+/** Open the device file picker for a song (MP3, M4A, AAC, WAV, OGG…). Resolves null if cancelled. */
+export function pickCustomMusic(): Promise<CustomMusic | null> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.webm';
+    input.style.display = 'none';
+    input.setAttribute('data-testid', 'custom-music-input');
+    document.body.appendChild(input);
+    const finish = () => setTimeout(() => input.remove(), 0);
+    input.addEventListener('cancel', () => {
+      finish();
+      resolve(null);
+    });
+    input.addEventListener('change', () => {
+      finish();
+      const f = input.files?.[0];
+      if (!f) return resolve(null);
+      const looksAudio = f.type.startsWith('audio/') || /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|webm)$/i.test(f.name);
+      if (!looksAudio) return reject(new Error('Please choose a music file (MP3, M4A, WAV…).'));
+      if (f.size > MAX_CUSTOM_MUSIC_BYTES) return reject(new Error('That song is too large — please pick one under 25 MB.'));
+      setCustomMusicFile(f, f.name);
+      resolve(custom!.info);
+    });
+    input.click();
+  });
+}
+
+export function setCustomMusicFile(file: Blob, name: string) {
+  clearCustomMusic();
+  custom = { file, url: URL.createObjectURL(file), info: { name: name.replace(/\.[^.]+$/, ''), sizeBytes: file.size } };
+}
+
+export function getCustomMusic(): CustomMusic | null {
+  return custom?.info ?? null;
+}
+export function getCustomMusicFile(): Blob | null {
+  return custom?.file ?? null;
+}
+
+export function clearCustomMusic() {
+  stopPreviewMusic();
+  if (custom) URL.revokeObjectURL(custom.url);
+  custom = null;
+}
+
+/** Decode the picked song for mixing into an exported video. */
+export async function decodeCustomMusic(ctx: Ctx, file: Blob): Promise<AudioBuffer> {
+  const data = await file.arrayBuffer();
+  try {
+    return await new Promise<AudioBuffer>((res, rej) => {
+      // callback form also works on older Safari
+      const p = ctx.decodeAudioData(data, res, rej);
+      if (p && typeof p.then === 'function') p.then(res, rej);
+    });
+  } catch {
+    throw new Error("We couldn't read that song. Try an MP3 or M4A file.");
+  }
+}
+
 // ---- simple preview controller (one at a time) ----
 let previewCtx: AudioContext | null = null;
 let current: MusicHandle | null = null;
+let previewEl: HTMLAudioElement | null = null;
 
 export function previewMusic(track: TrackId, offset: number, duration: number) {
   stopPreviewMusic();
   if (track === 'none') return;
+  if (track === 'custom') {
+    if (!custom) return;
+    previewEl = new Audio(custom.url);
+    previewEl.loop = true;
+    try {
+      previewEl.currentTime = offset;
+    } catch {
+      /* not seekable yet */
+    }
+    void previewEl.play().catch(() => {});
+    return;
+  }
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   if (!AC) return;
   previewCtx ??= new AC();
@@ -167,4 +279,8 @@ export function previewMusic(track: TrackId, offset: number, duration: number) {
 export function stopPreviewMusic() {
   current?.stop();
   current = null;
+  if (previewEl) {
+    previewEl.pause();
+    previewEl = null;
+  }
 }

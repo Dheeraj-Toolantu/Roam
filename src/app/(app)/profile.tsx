@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { confirmAsync, PostCard } from '@/components/PostCard';
 import { IconBadge, PressScale, type IconGradient } from '@/components/motion';
-import { Avatar, Button, Card, Empty, IconButton, Loading, Row, Screen, Segmented, Stat, type IconName } from '@/components/ui';
+import { Avatar, Button, Card, Empty, goBackOr, IconButton, Loading, Row, Screen, Segmented, Stat, type IconName } from '@/components/ui';
 import { passportStats } from '@/logic/achievements';
 import { signOut, useMe, useSession } from '@/lib/session';
 import { subscribeMyJourneys } from '@/services/journeys';
@@ -14,7 +14,7 @@ import { loadSavedPosts, loadUserPosts } from '@/services/social';
 import { colors, radius, space, type } from '@/theme';
 import type { AppNotification, Journey, Post } from '@/types';
 
-export default function ProfileTab() {
+export default function Profile() {
   const me = useMe();
   const { admin } = useSession();
   const [journeys, setJourneys] = useState<Journey[]>([]);
@@ -41,7 +41,8 @@ export default function ProfileTab() {
   return (
     <Screen>
       <Row style={{ marginBottom: space.lg }}>
-        <Text style={[type.h1, { flex: 1 }]}>My Travel Passport</Text>
+        <IconButton icon="chevron-back" accessibilityLabel="Back"onPress={() => goBackOr('/')} />
+        <Text style={[type.h1, { flex: 1, marginLeft: 10 }]}>My Travel Passport</Text>
         <IconButton icon="notifications-outline" badge={unread} accessibilityLabel="Notifications" onPress={() => router.push('/notifications')} />
         <IconButton icon="settings-outline" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
       </Row>
