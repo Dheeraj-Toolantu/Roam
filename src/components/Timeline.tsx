@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { colors, radius, type } from '../theme';
 import type { Activity } from '../types';
 import { Appear } from './motion';
+import { VideoPlayer } from './VideoPlayer';
 import { Row, type IconName } from './ui';
 
 const ICON: Record<Activity['type'], IconName> = {
@@ -68,9 +69,7 @@ export function ActivityTimeline({ items, onPress }: { items: Activity[]; onPres
                     <Image source={{ uri: a.mediaUrl }} style={{ width: '100%', height: 160, borderRadius: radius.md, marginTop: 8 }} contentFit="cover" />
                   )}
                   {!!a.mediaUrl && a.type === 'video' && (
-                    <View style={{ height: 100, borderRadius: radius.md, marginTop: 8, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="play-circle" size={40} color="#fff" />
-                    </View>
+                    <VideoPlayer uri={a.mediaUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`activity-video-${a.id}`} />
                   )}
                   {a.visibility !== 'private' && (
                     <Row gap={4} style={{ marginTop: 4 }}>

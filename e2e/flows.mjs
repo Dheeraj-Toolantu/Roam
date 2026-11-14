@@ -35,6 +35,18 @@ await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
 // ---------- helpers ----------
 const results = [];
 let failures = 0;
+/** Asserts a <video> loads its media (≈6 s clip) and its playhead advances when played. */
+async function expectPlayable(page, selector, where) {
+  const v = page.locator(selector).first();
+  await v.waitFor({ state: 'attached', timeout: 20_000 });
+  await page.waitForFunction((el) => el && el.readyState >= 1 && Number.isFinite(el.duration), await v.elementHandle(), { timeout: 20_000 });
+  const dur = await v.evaluate((el) => el.duration);
+  if (dur < 5 || dur > 7) throw new Error(`${where}: unexpected video duration ${dur}`);
+  if (!(await v.evaluate((el) => el.controls))) throw new Error(`${where}: video has no playback controls`);
+  await v.evaluate((el) => { el.muted = true; return el.play(); });
+  await page.waitForFunction((el) => el.currentTime > 0.3, await v.elementHandle(), { timeout: 15_000 });
+}
+
 async function step(name, fn) {
   const t = Date.now();
   try {
@@ -207,10 +219,14 @@ try {
     await text(b, /0:45 long\. Videos can be up to 30 seconds/);
     await pick(short);
     await text(b, 'Video ready · 0:06');
+    await expectPlayable(b, '[data-testid="capture-video-preview"] video', 'capture preview');
     await tid(b, 'capture-caption').filter({ visible: true }).first().fill('Quick clip from the beach 🎬');
     await tid(b, 'vis-public').filter({ visible: true }).first().click();
     await tid(b, 'capture-save').filter({ visible: true }).first().click();
     await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
+    // The uploaded clip must actually play from Cloud Storage in the feed.
+    await b.goto(BASE + '/');
+    await expectPlayable(b, '[data-testid^="video-"] video', 'feed post');
   });
 
   await step('AC-002/003 Start journey with location permission; GPS points recorded and city detected', async () => {
