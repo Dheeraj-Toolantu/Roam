@@ -12,6 +12,7 @@ import type { Post, UserProfile } from '../types';
 import { confirmAsync, toast } from './Dialogs';
 import { HeartPop, tap, useBump } from './motion';
 import { Avatar, Pill, Row } from './ui';
+import { VideoPlayer } from './VideoPlayer';
 
 const VIS_ICON = { public: 'earth', followers: 'people', crew: 'people-circle', private: 'lock-closed' } as const;
 
@@ -126,10 +127,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
         </Pressable>
       )}
       {!!post.mediaUrl && post.mediaType === 'video' && (
-        <Pressable onPress={() => router.push(`/post/${post.id}`)} style={[styles.media, styles.video]}>
-          <Ionicons name="play-circle" size={54} color="#fff" />
-          <Text style={type.small}>Video</Text>
-        </Pressable>
+        <VideoPlayer uri={post.mediaUrl} style={[styles.media, styles.video]} testID={`video-${post.id}`} />
       )}
       <Row style={{ marginTop: space.md, justifyContent: 'space-between' }}>
         <Row gap={18}>
@@ -170,7 +168,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.cardBorder, marginBottom: space.md },
   media: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.cardAlt },
-  video: { alignItems: 'center', justifyContent: 'center' },
+  video: { aspectRatio: 9 / 16, maxHeight: 460, backgroundColor: '#000' },
 });
 
 // confirmAsync/toast live in Dialogs.tsx (in-app sheets); re-exported for existing imports.

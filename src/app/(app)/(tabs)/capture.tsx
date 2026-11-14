@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { IconBadge, PressScale } from '@/components/motion';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { Button, Card, Chip, ErrorText, Field, InfoText, ProgressBar, Row, Screen } from '@/components/ui';
 import { toast } from '@/components/PostCard';
 import { useMe } from '@/lib/session';
@@ -130,8 +131,8 @@ export default function Capture() {
           {media.type === 'image' ? (
             <Image source={{ uri: media.uri }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: radius.lg }} contentFit="cover" />
           ) : (
-            <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: radius.lg, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="videocam" size={48} color={colors.pink} />
+            <View style={{ gap: 6 }}>
+              <VideoPlayer uri={media.uri} style={{ width: '100%', aspectRatio: 9 / 16, maxHeight: 420, borderRadius: radius.lg }} testID="capture-video-preview" />
               <Text style={type.small} testID="capture-video-ready">
                 Video ready{media.durationMs ? ` · ${formatClipLength(media.durationMs)}` : ''}
               </Text>

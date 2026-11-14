@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -187,9 +188,7 @@ export default function TripDashboard() {
             {media.map((m) => (
               <View key={m.id} style={{ width: '32%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.card }}>
                 {m.type === 'video' ? (
-                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="play-circle" size={32} color="#fff" />
-                  </View>
+                  <VideoPlayer uri={m.mediaUrl!} compact style={{ flex: 1 }} testID={`moment-video-${m.id}`} />
                 ) : (
                   <Image source={{ uri: m.mediaUrl! }} style={{ flex: 1 }} contentFit="cover" />
                 )}
@@ -293,6 +292,9 @@ function TimelineRow({ item, last, groupId, canDelete }: { item: TimelineItem; l
         <Text style={type.h3}>{item.placeName ?? item.text}</Text>
         {!!item.placeName && item.text !== `At ${item.placeName}` && <Text style={[type.small, { color: colors.text }]}>{item.text}</Text>}
         <Text style={type.tiny}>Shared by {item.authorId === me.uid ? 'you' : item.authorName}</Text>
+        {!!item.mediaUrl && item.type === 'video' && (
+          <VideoPlayer uri={item.mediaUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`timeline-video-${item.id}`} />
+        )}
         {!!item.mediaUrl && item.type !== 'video' && (
           <Image source={{ uri: item.mediaUrl }} style={{ width: '100%', height: 170, borderRadius: radius.md, marginTop: 8 }} contentFit="cover" />
         )}
