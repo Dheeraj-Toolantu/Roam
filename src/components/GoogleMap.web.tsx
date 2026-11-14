@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { DARK_MAP_STYLE, GOOGLE_MAPS_API_KEY, loadGoogleMapsWeb } from '../lib/googleMaps';
+import { DARK_MAP_STYLE, GOOGLE_MAPS_API_KEY, googleMapsAuthFailed, loadGoogleMapsWeb, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { colors, type } from '../theme';
 import type { GoogleMapProps } from './GoogleMap.types';
 import { RouteMap } from './maps';
@@ -18,7 +18,9 @@ export function GoogleMap(props: GoogleMapProps) {
   const layers = useRef<{ setMap: (m: google.maps.Map | null) => void }[]>([]);
   const meLayers = useRef<{ dot?: google.maps.Marker; acc?: google.maps.Circle }>({});
   const fitted = useRef<string>('');
-  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>(() => (googleMapsAuthFailed() ? 'failed' : 'loading'));
+  // Google can reject the key after the map was created: switch to the offline map then too.
+  useEffect(() => onGoogleMapsAuthFailure(() => setStatus('failed')), []);
   // Redraw overlays only when their content changes (not on every live-location re-render).
   const contentKey = JSON.stringify([route, routes, markers.map(({ onPress: _onPress, ...m }) => m)]);
   const latest = useRef(props);
@@ -137,7 +139,9 @@ export function GoogleMap(props: GoogleMapProps) {
     return (
       <View testID={testID}>
         <RouteMap route={[...route, ...routes.flatMap((r) => r.points)]} pins={markers.map((m) => ({ lat: m.lat, lng: m.lng, color: m.color }))} current={me} height={height} style={style} />
-        <Text style={[type.tiny, { marginTop: 4 }]}>Google Maps unavailable — showing offline map.</Text>
+        <Text style={[type.tiny, { marginTop: 4 }]} testID="map-offline-note">
+          Google Maps unavailable — showing offline map.
+        </Text>
       </View>
     );
   }

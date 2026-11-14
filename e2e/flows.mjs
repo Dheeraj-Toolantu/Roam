@@ -651,6 +651,14 @@ try {
     await C.context.close();
   });
 
+  await step('Google Maps key rejected by Google → offline map instead of an error box', async () => {
+    await b.goto(BASE + '/live-map');
+    await b.locator('[data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
+    await b.evaluate(() => window.gm_authFailure?.()); // what Google calls for a blocked/invalid key
+    await tid(b, 'map-offline-note').filter({ visible: true }).first().waitFor({ timeout: 10_000 });
+    if (await b.locator('[data-testid="google-map"]').count()) throw new Error('Google map still shown after auth failure');
+  });
+
   await step('Sign out returns to login', async () => {
     await b.goto(BASE + '/profile');
     await tid(b, 'sign-out').filter({ visible: true }).first().click();

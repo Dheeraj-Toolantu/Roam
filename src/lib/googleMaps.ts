@@ -31,12 +31,37 @@ export const DARK_MAP_STYLE = [
 
 let loading: Promise<typeof google.maps> | null = null;
 
+/**
+ * Google rejected the key (not authorised for the Maps JavaScript API, wrong referrer,
+ * billing…). Google calls window.gm_authFailure; maps then switch to the offline map
+ * instead of showing Google's "Oops! Something went wrong" box.
+ */
+let authFailed = false;
+const authListeners = new Set<() => void>();
+export function googleMapsAuthFailed() {
+  return authFailed;
+}
+export function onGoogleMapsAuthFailure(cb: () => void): () => void {
+  authListeners.add(cb);
+  return () => authListeners.delete(cb);
+}
+function installAuthFailureHook() {
+  const w = window as unknown as { gm_authFailure?: () => void };
+  w.gm_authFailure = () => {
+    authFailed = true;
+    console.warn('Google Maps rejected the API key — using the offline map. Allow the Maps JavaScript API for this key in Google Cloud.');
+    authListeners.forEach((cb) => cb());
+  };
+}
+
 /** Load the Maps JavaScript API once (web only). */
 export function loadGoogleMapsWeb(timeoutMs = 15_000): Promise<typeof google.maps> {
   if (typeof window === 'undefined') return Promise.reject(new Error('Google Maps JS is web-only'));
   const w = window as unknown as { google?: typeof google; __roamGmapsInit?: () => void };
+  if (authFailed) return Promise.reject(new Error('Google Maps key not authorised'));
   if (w.google?.maps?.Map) return Promise.resolve(w.google.maps);
   if (loading) return loading;
+  installAuthFailureHook();
   loading = new Promise<typeof google.maps>((resolve, reject) => {
     const timer = setTimeout(() => {
       loading = null;
@@ -70,9 +95,23 @@ export interface GeocodedPlace {
 
 /** Reverse geocode with Google's Geocoding service (web; requires an API key). */
 export async function reverseGeocodeWeb(lat: number, lng: number): Promise<GeocodedPlace | null> {
-  if (!GOOGLE_MAPS_API_KEY) return null;
+  if (!GOOGLE_MAPS_API_KEY || authFailed) return null;
   const maps = await loadGoogleMapsWeb();
-  const res = await new maps.Geocoder().geocode({ location: { lat, lng } });
+  // A rejected key leaves the geocoder hanging forever: give up on auth failure or after 8 s,
+  // so callers fall back to the offline city catalogue.
+  let off = () => {};
+  const res = await Promise.race([
+    new maps.Geocoder().geocode({ location: { lat, lng } }),
+    new Promise<never>((_, rej) => {
+      const t = setTimeout(() => rej(new Error('Geocoding timed out')), 8_000);
+      off = onGoogleMapsAuthFailure(() => rej(new Error('Google Maps key not authorised')));
+      const prevOff = off;
+      off = () => {
+        clearTimeout(t);
+        prevOff();
+      };
+    }),
+  ]).finally(() => off());
   const comps = res.results?.[0]?.address_components ?? [];
   const get = (t: string) => comps.find((c) => c.types.includes(t))?.long_name ?? null;
   return {

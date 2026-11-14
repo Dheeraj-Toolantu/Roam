@@ -22,6 +22,8 @@ if (!process.env.E2E_SKIP_BUILD || !existsSync(`${root}/dist/index.html`)) {
     EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: 'demo-roam.appspot.com',
     EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000',
     EXPO_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000',
+    // Tests must not depend on the production Maps key (keyless = Google's development mode).
+    EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: '',
   });
 }
 sh('npm --prefix functions run build');
