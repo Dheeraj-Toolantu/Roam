@@ -20,7 +20,8 @@ const as = (uid: string) => env.authenticatedContext(uid).storage();
 const anon = () => env.unauthenticatedContext().storage();
 const bytes = (n: number) => new Uint8Array(n).fill(7);
 const IMG = { contentType: 'image/jpeg' };
-const VID = { contentType: 'video/mp4' };
+const VID = { contentType: 'video/mp4', customMetadata: { durationMs: '12000' } };
+const vid = (durationMs?: string) => ({ contentType: 'video/mp4', ...(durationMs !== undefined ? { customMetadata: { durationMs } } : {}) });
 
 describe('storage.rules', () => {
   it('users upload photos & videos only into their own media folder', async () => {
@@ -28,6 +29,15 @@ describe('storage.rules', () => {
     await assertSucceeds(uploadBytes(ref(as('alice'), 'media/alice/clip.mp4'), bytes(1000), VID));
     await assertFails(uploadBytes(ref(as('bob'), 'media/alice/evil.jpg'), bytes(1000), IMG));
     await assertFails(uploadBytes(ref(anon(), 'media/alice/x.jpg'), bytes(1000), IMG));
+  });
+
+  it('videos: max 30 seconds, length must be declared', async () => {
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'media/alice/ok.mp4'), bytes(1000), vid('29900')));
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'media/alice/edge.mp4'), bytes(1000), vid('30400')));
+    await assertFails(uploadBytes(ref(as('alice'), 'media/alice/long.mp4'), bytes(1000), vid('45000')));
+    await assertFails(uploadBytes(ref(as('alice'), 'media/alice/nolen.mp4'), bytes(1000), vid()));
+    await assertFails(uploadBytes(ref(as('alice'), 'media/alice/bad.mp4'), bytes(1000), vid('abc')));
+    await assertFails(uploadBytes(ref(as('alice'), 'receipts/alice/r.mp4'), bytes(1000), vid('5000')));
   });
 
   it('rejects non-media files', async () => {

@@ -63,7 +63,7 @@ export function errorMessage(e: unknown): string {
     'auth/network-request-failed': 'Network error. Check your connection.',
     'auth/popup-closed-by-user': 'Sign-in was cancelled.',
     'permission-denied': 'You do not have permission to do that.',
-    'storage/unauthorized': 'You do not have permission to upload this file.',
+    'storage/unauthorized': 'Upload refused. Photos up to 25 MB and videos up to 30 seconds (100 MB) are allowed.',
     'storage/canceled': 'Upload cancelled.',
     'storage/quota-exceeded': 'Storage is full right now. Please try again later.',
     'storage/retry-limit-exceeded': 'Upload timed out. Check your connection and try again.',

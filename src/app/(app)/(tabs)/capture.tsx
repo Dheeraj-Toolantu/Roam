@@ -10,6 +10,7 @@ import { Button, Card, Chip, ErrorText, Field, InfoText, ProgressBar, Row, Scree
 import { toast } from '@/components/PostCard';
 import { useMe } from '@/lib/session';
 import { nearestCity } from '@/logic/journey';
+import { formatClipLength, MAX_VIDEO_SECONDS } from '@/logic/media';
 import { addTimelineItem, subscribeMyGroups } from '@/services/crew';
 import { addActivity, getActiveJourney } from '@/services/journeys';
 import { pickMedia, uploadMedia, type PickedMedia } from '@/services/media';
@@ -131,7 +132,9 @@ export default function Capture() {
           ) : (
             <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: radius.lg, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="videocam" size={48} color={colors.pink} />
-              <Text style={type.small}>Video ready{media.durationMs ? ` · ${Math.round(media.durationMs / 1000)}s` : ''}</Text>
+              <Text style={type.small} testID="capture-video-ready">
+                Video ready{media.durationMs ? ` · ${formatClipLength(media.durationMs)}` : ''}
+              </Text>
             </View>
           )}
           <Pressable onPress={() => setMedia(null)} style={{ position: 'absolute', top: 10, right: 10, backgroundColor: colors.overlay, borderRadius: 16, padding: 6 }} accessibilityLabel="Remove media">
@@ -145,6 +148,11 @@ export default function Capture() {
         </Row>
       )}
 
+      {!media && (
+        <Text style={[type.tiny, { textAlign: 'center', marginTop: -6, marginBottom: 12 }]} testID="video-limit-hint">
+          📸 Photos & 🎬 videos up to {MAX_VIDEO_SECONDS} seconds
+        </Text>
+      )}
       <Field testID="capture-caption" placeholder="Say something about this moment…" value={caption} onChangeText={setCaption} multiline />
       <Field testID="capture-place" icon="location-outline" placeholder="Place (e.g. Baga Beach)" value={place} onChangeText={setPlace} />
       {!!here.place && !place && (

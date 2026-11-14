@@ -6,9 +6,21 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*') && request.resource.size < 25 * 1024 * 1024;
+    }
+    // Videos: max 30 seconds (+0.5 s rounding) and 100 MB. The app measures the clip and
+    // sends its length as custom metadata `durationMs`; uploads without it are refused.
+    function isShortVideo() {
+      return request.resource.contentType.matches('video/.*')
+        && request.resource.size < 100 * 1024 * 1024
+        && request.resource.metadata != null
+        && request.resource.metadata.durationMs is string
+        && request.resource.metadata.durationMs.matches('^[0-9]{1,6}$')
+        && int(request.resource.metadata.durationMs) <= 30500;
+    }
     function okMedia() {
-      return request.resource.size < 200 * 1024 * 1024
-        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+      return isImage() || isShortVideo();
     }
 
     match /media/{uid}/{allPaths=**} {
@@ -22,7 +34,7 @@ service firebase.storage {
     }
     match /receipts/{uid}/{allPaths=**} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || okMedia());
+      allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || isImage());
     }
   }
 }

@@ -185,6 +185,34 @@ try {
     await signUp(b, 'Priya Sharma', `priya${run}`.slice(0, 20), `priya.${run}@roam.test`, { fromOnboarding: false });
   });
 
+  await step('Video uploads are limited to 30 seconds (45 s rejected, 6 s uploaded)', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const { tmpdir } = await import('node:os');
+    const dir = join(tmpdir(), `roam-e2e-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    const make = (secs) => {
+      const out = join(dir, `clip${secs}.webm`);
+      execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `testsrc=size=160x120:rate=10`, '-t', String(secs), '-c:v', 'libvpx', '-b:v', '80k', out]);
+      return out;
+    };
+    const long = make(45);
+    const short = make(6);
+    await b.goto(BASE + '/capture');
+    await tid(b, 'video-limit-hint').filter({ visible: true }).first().waitFor();
+    const pick = async (file) => {
+      const [chooser] = await Promise.all([b.waitForEvent('filechooser'), tid(b, 'capture-upload').filter({ visible: true }).first().click()]);
+      await chooser.setFiles(file);
+    };
+    await pick(long);
+    await text(b, /0:45 long\. Videos can be up to 30 seconds/);
+    await pick(short);
+    await text(b, 'Video ready · 0:06');
+    await tid(b, 'capture-caption').filter({ visible: true }).first().fill('Quick clip from the beach 🎬');
+    await tid(b, 'vis-public').filter({ visible: true }).first().click();
+    await tid(b, 'capture-save').filter({ visible: true }).first().click();
+    await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
+  });
+
   await step('AC-002/003 Start journey with location permission; GPS points recorded and city detected', async () => {
     await tid(a, 'qa-start').click();
     await a.waitForFunction(() => /Starting from .*Goa/.test(document.querySelector('[data-testid="start-location"]')?.textContent ?? ''), null, { timeout: 15_000 });
