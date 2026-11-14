@@ -8,6 +8,8 @@
  * "for development purposes only" mode on web.
  */
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+/** Optional dedicated Geocoding API key (place names). Falls back to the Maps key's Geocoder. */
+export const GOOGLE_GEOCODING_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_GEOCODING_API_KEY ?? '';
 
 /** Dark "night" style matching the ROAM navy theme. */
 export const DARK_MAP_STYLE = [
@@ -93,8 +95,40 @@ export interface GeocodedPlace {
   country: string | null;
 }
 
-/** Reverse geocode with Google's Geocoding service (web; requires an API key). */
+type AddressComponent = { long_name: string; types: string[] };
+
+function toPlace(comps: AddressComponent[]): GeocodedPlace {
+  const get = (t: string) => comps.find((c) => c.types.includes(t))?.long_name ?? null;
+  return {
+    name: get('point_of_interest') ?? get('premise') ?? get('route'),
+    district: get('sublocality') ?? get('neighborhood') ?? get('locality'),
+    city: get('locality') ?? get('administrative_area_level_2'),
+    region: get('administrative_area_level_1'),
+    country: get('country'),
+  };
+}
+
+/** Geocoding API (REST) with the dedicated key; null on any error so callers fall back. */
+async function reverseGeocodeRest(lat: number, lng: number): Promise<GeocodedPlace | null> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8_000);
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${encodeURIComponent(GOOGLE_GEOCODING_API_KEY)}`;
+    const res = await fetch(url, { signal: ctl.signal });
+    const json = (await res.json()) as { status: string; results?: { address_components: AddressComponent[] }[] };
+    if (json.status !== 'OK' || !json.results?.length) return null;
+    return toPlace(json.results[0].address_components);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Reverse geocode with Google (web): the dedicated Geocoding key if set, else the Maps JS Geocoder. */
 export async function reverseGeocodeWeb(lat: number, lng: number): Promise<GeocodedPlace | null> {
+  if (GOOGLE_GEOCODING_API_KEY) {
+    const place = await reverseGeocodeRest(lat, lng).catch(() => null);
+    if (place) return place;
+  }
   if (!GOOGLE_MAPS_API_KEY || authFailed) return null;
   const maps = await loadGoogleMapsWeb();
   // A rejected key leaves the geocoder hanging forever: give up on auth failure or after 8 s,
@@ -112,13 +146,5 @@ export async function reverseGeocodeWeb(lat: number, lng: number): Promise<Geoco
       };
     }),
   ]).finally(() => off());
-  const comps = res.results?.[0]?.address_components ?? [];
-  const get = (t: string) => comps.find((c) => c.types.includes(t))?.long_name ?? null;
-  return {
-    name: get('point_of_interest') ?? get('premise') ?? get('route'),
-    district: get('sublocality') ?? get('neighborhood') ?? get('locality'),
-    city: get('locality') ?? get('administrative_area_level_2'),
-    region: get('administrative_area_level_1'),
-    country: get('country'),
-  };
+  return toPlace(res.results?.[0]?.address_components ?? []);
 }
