@@ -3,32 +3,17 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import Animated from 'react-native-reanimated';
-import { Alert, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { hasLiked, isSaved, report, toggleLike, toggleSave } from '../services/social';
 import { timeAgo } from '../services/util';
 import { colors, radius, space, type } from '../theme';
 import type { Post, UserProfile } from '../types';
+import { confirmAsync, toast } from './Dialogs';
 import { HeartPop, tap, useBump } from './motion';
 import { Avatar, Pill, Row } from './ui';
 
 const VIS_ICON = { public: 'earth', followers: 'people', crew: 'people-circle', private: 'lock-closed' } as const;
-
-export function confirmAsync(title: string, message: string, okText = 'OK'): Promise<boolean> {
-  if (Platform.OS === 'web') return Promise.resolve(typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : true);
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: okText, style: 'destructive', onPress: () => resolve(true) },
-    ]),
-  );
-}
-
-export function toast(message: string) {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined') window.alert(message);
-  } else Alert.alert('ROAM', message);
-}
 
 export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile; onChanged?: () => void }) {
   const [liked, setLiked] = useState(false);
@@ -187,3 +172,6 @@ const styles = StyleSheet.create({
   media: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.cardAlt },
   video: { alignItems: 'center', justifyContent: 'center' },
 });
+
+// confirmAsync/toast live in Dialogs.tsx (in-app sheets); re-exported for existing imports.
+export { confirmAsync, toast };
