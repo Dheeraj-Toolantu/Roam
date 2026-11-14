@@ -52,3 +52,10 @@ e2e/screenshots/
 
 # local env
 .env
+
+# Never commit service-account keys
+*firebase-adminsdk*.json
+service-account*.json
+
+# firebase-tools local deploy cache
+.firebase/

@@ -18,6 +18,7 @@ import {
 
 import { CITIES } from '../data/cities';
 import { db } from '../lib/firebase';
+import { FALLBACK_SCAN_LIMIT, fetchNewestDocs, onSnapshotWithIndexFallback, sortNewest } from '../lib/indexFallback';
 import { endJourney, pauseJourney, resumeJourney } from '../logic/journey';
 import { locationBatchUpdate } from '../logic/journeyUpdate';
 import type { Activity, ActivityType, Journey, UserProfile, Visibility } from '../types';
@@ -71,15 +72,23 @@ export function subscribeJourney(id: string, cb: (j: Journey | null) => void) {
 }
 
 export async function getActiveJourney(uid: string): Promise<Journey | null> {
-  const q = query(collection(db, 'journeys'), where('ownerId', '==', uid), orderBy('startedAt', 'desc'), limit(5));
-  const s = await getDocs(q);
-  const j = s.docs.map((d) => withId<Journey>(d)).find((x) => x.status !== 'completed');
+  const docs = await fetchNewestDocs('active journey', collection(db, 'journeys'), [where('ownerId', '==', uid)], 'startedAt', 5);
+  const j = docs.map((d) => withId<Journey>(d)).find((x) => x.status !== 'completed');
   return j ?? null;
 }
 
 export function subscribeMyJourneys(uid: string, cb: (j: Journey[]) => void) {
-  const q = query(collection(db, 'journeys'), where('ownerId', '==', uid), orderBy('startedAt', 'desc'), limit(100));
-  return onSnapshot(q, (s) => cb(s.docs.map((d) => withId<Journey>(d))), () => cb([]));
+  const mine = where('ownerId', '==', uid);
+  return onSnapshotWithIndexFallback(
+    'my journeys',
+    query(collection(db, 'journeys'), mine, orderBy('startedAt', 'desc'), limit(100)),
+    query(collection(db, 'journeys'), mine, limit(FALLBACK_SCAN_LIMIT)),
+    (docs, viaFallback) => {
+      const list = docs.map((d) => withId<Journey>(d));
+      cb(viaFallback ? sortNewest(list, 'startedAt').slice(0, 100) : list);
+    },
+    () => cb([]),
+  );
 }
 
 export async function pause(j: Journey) {

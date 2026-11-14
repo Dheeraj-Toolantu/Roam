@@ -12,7 +12,17 @@ const root = new URL('..', import.meta.url).pathname;
 const sh = (cmd, env = {}) => execSync(cmd, { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
 
 if (!process.env.E2E_SKIP_BUILD || !existsSync(`${root}/dist/index.html`)) {
-  sh('npx expo export --platform web --clear', { EXPO_PUBLIC_USE_EMULATORS: '1', EXPO_OFFLINE: '1' });
+  // Pin the demo project so .env.production (real project) is never used for emulator tests.
+  sh('npx expo export --platform web --clear', {
+    EXPO_PUBLIC_USE_EMULATORS: '1',
+    EXPO_OFFLINE: '1',
+    EXPO_PUBLIC_FIREBASE_API_KEY: 'demo-api-key',
+    EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'demo-roam.firebaseapp.com',
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'demo-roam',
+    EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: 'demo-roam.appspot.com',
+    EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000',
+    EXPO_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000',
+  });
 }
 sh('npm --prefix functions run build');
 sh(`npx firebase emulators:exec --project demo-roam --only auth,firestore,functions,storage "node e2e/flows.mjs"`, {

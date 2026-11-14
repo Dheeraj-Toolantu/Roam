@@ -7,7 +7,6 @@ import {
   increment,
   limit,
   onSnapshot,
-  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -18,6 +17,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '../lib/firebase';
+import { fetchNewestDocs } from '../lib/indexFallback';
 import type { NotificationType, UserProfile } from '../types';
 import { notify } from './notifications';
 import { withId } from './util';
@@ -128,9 +128,8 @@ export async function findByUsername(username: string): Promise<UserProfile | nu
 }
 
 export async function listPublicTravellers(max = 30): Promise<UserProfile[]> {
-  const q = query(collection(db, 'users'), where('visibility', '==', 'public'), orderBy('createdAt', 'desc'), limit(max));
-  const s = await getDocs(q);
-  return s.docs.map((d) => ({ ...(d.data() as UserProfile), uid: d.id }));
+  const docs = await fetchNewestDocs('public travellers', collection(db, 'users'), [where('visibility', '==', 'public')], 'createdAt', max);
+  return docs.map((d) => ({ ...(d.data() as UserProfile), uid: d.id }));
 }
 
 export async function isFollowing(me: string, target: string) {

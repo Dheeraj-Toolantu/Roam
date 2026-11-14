@@ -18,6 +18,7 @@ import {
 
 import { findCityByName } from '../data/cities';
 import { db } from '../lib/firebase';
+import { fetchNewestDocs } from '../lib/indexFallback';
 import type { Comment, Post, UserProfile, Visibility } from '../types';
 import { notify } from './notifications';
 import { getBlockedIds, getFollowingIds } from './users';
@@ -68,46 +69,44 @@ const byNewest = (a: Post, b: Post) => (b.createdAt?.toMillis() ?? Date.now()) -
  */
 export async function loadFeed(me: string, max = 40): Promise<Post[]> {
   const [following, blocked] = await Promise.all([getFollowingIds(me), getBlockedIds(me).catch((): string[] => [])]);
+  const posts = collection(db, 'posts');
   const queries = [
-    query(collection(db, 'posts'), where('visibility', '==', 'public'), orderBy('createdAt', 'desc'), limit(max)),
-    query(collection(db, 'posts'), where('authorId', '==', me), orderBy('createdAt', 'desc'), limit(20)),
-    ...following.slice(0, 15).map((uid) =>
-      query(collection(db, 'posts'), where('authorId', '==', uid), where('visibility', '==', 'followers'), orderBy('createdAt', 'desc'), limit(10)),
+    () => fetchNewestDocs('feed: public posts', posts, [where('visibility', '==', 'public')], 'createdAt', max),
+    () => fetchNewestDocs('feed: my posts', posts, [where('authorId', '==', me)], 'createdAt', 20),
+    ...following.slice(0, 15).map(
+      (uid) => () => fetchNewestDocs('feed: followers-only posts', posts, [where('authorId', '==', uid), where('visibility', '==', 'followers')], 'createdAt', 10),
     ),
   ];
-  const results = await Promise.allSettled(queries.map((q) => getDocs(q)));
+  const results = await Promise.allSettled(queries.map((q) => q()));
   const map = new Map<string, Post>();
   for (const r of results) {
     if (r.status !== 'fulfilled') continue;
-    r.value.docs.forEach((d) => map.set(d.id, withId<Post>(d)));
+    r.value.forEach((d) => map.set(d.id, withId<Post>(d)));
   }
   return [...map.values()].filter((p) => !blocked.includes(p.authorId)).sort(byNewest).slice(0, max);
 }
 
 export async function loadUserPosts(viewer: string, authorId: string): Promise<Post[]> {
+  const posts = collection(db, 'posts');
+  const by = where('authorId', '==', authorId);
   const qs =
     viewer === authorId
-      ? [query(collection(db, 'posts'), where('authorId', '==', authorId), orderBy('createdAt', 'desc'), limit(50))]
-      : [
-          query(collection(db, 'posts'), where('authorId', '==', authorId), where('visibility', '==', 'public'), orderBy('createdAt', 'desc'), limit(50)),
-          query(collection(db, 'posts'), where('authorId', '==', authorId), where('visibility', '==', 'followers'), orderBy('createdAt', 'desc'), limit(50)),
-        ];
-  const res = await Promise.allSettled(qs.map((q) => getDocs(q)));
+      ? [() => fetchNewestDocs('profile: my posts', posts, [by], 'createdAt', 50)]
+      : (['public', 'followers'] as const).map((v) => () => fetchNewestDocs(`profile: ${v} posts`, posts, [by, where('visibility', '==', v)], 'createdAt', 50));
+  const res = await Promise.allSettled(qs.map((q) => q()));
   const out: Post[] = [];
-  res.forEach((r) => r.status === 'fulfilled' && r.value.docs.forEach((d) => out.push(withId<Post>(d))));
+  res.forEach((r) => r.status === 'fulfilled' && r.value.forEach((d) => out.push(withId<Post>(d))));
   return out.sort(byNewest);
 }
 
 export async function loadCityPosts(cityId: string, max = 50): Promise<Post[]> {
-  const q = query(collection(db, 'posts'), where('cityId', '==', cityId), where('visibility', '==', 'public'), orderBy('createdAt', 'desc'), limit(max));
-  const s = await getDocs(q);
-  return s.docs.map((d) => withId<Post>(d));
+  const docs = await fetchNewestDocs('city memories', collection(db, 'posts'), [where('cityId', '==', cityId), where('visibility', '==', 'public')], 'createdAt', max);
+  return docs.map((d) => withId<Post>(d));
 }
 
 export async function loadPublicPosts(max = 100): Promise<Post[]> {
-  const q = query(collection(db, 'posts'), where('visibility', '==', 'public'), orderBy('createdAt', 'desc'), limit(max));
-  const s = await getDocs(q);
-  return s.docs.map((d) => withId<Post>(d));
+  const docs = await fetchNewestDocs('public posts', collection(db, 'posts'), [where('visibility', '==', 'public')], 'createdAt', max);
+  return docs.map((d) => withId<Post>(d));
 }
 
 export function subscribePost(id: string, cb: (p: Post | null) => void) {
