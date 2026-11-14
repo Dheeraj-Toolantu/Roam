@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { ActivityComposer } from '@/components/ActivityComposer';
-import { RouteMap } from '@/components/maps';
+import { GoogleMap } from '@/components/GoogleMap';
 import { confirmAsync, toast } from '@/components/PostCard';
 import { ActivityTimeline } from '@/components/Timeline';
 import { Button, Card, Chip, Empty, ErrorText, Field, Header, IconButton, InfoText, Loading, Pill, Row, Screen, SectionTitle, Stat } from '@/components/ui';
@@ -25,6 +25,7 @@ import {
   updateJourney,
 } from '@/services/journeys';
 import { createPost } from '@/services/social';
+import { useLiveLocation } from '@/services/location';
 import { tracker, type TrackerState } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
 import { colors, radius, type } from '@/theme';
@@ -51,6 +52,8 @@ export default function JourneyScreen() {
   }, []);
 
   const mine = j?.ownerId === me.uid;
+  // Live blue dot + camera follow while my journey is in progress
+  const live_ = useLiveLocation({ live: !!j && mine && j.status !== 'completed' });
   // Keep tracker running while the journey is active (resumes after app restart).
   useEffect(() => {
     if (!j || !mine) return;
@@ -98,7 +101,14 @@ export default function JourneyScreen() {
   const current = t.journeyId === j.id && t.lastFix ? t.lastFix : j.lastPoint;
   const placePins = acts
     .filter((a) => a.lat != null && a.lng != null && a.type !== 'start' && a.type !== 'end')
-    .map((a) => ({ lat: a.lat!, lng: a.lng!, color: a.type === 'photo' ? colors.cyan : colors.pink }));
+    .map((a) => ({
+      id: a.id,
+      lat: a.lat!,
+      lng: a.lng!,
+      title: a.placeName ?? a.title,
+      description: new Date(a.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      color: a.type === 'photo' || a.type === 'video' ? colors.cyan : colors.pink,
+    }));
   const anchor = j.anchorCityId ? CITY_BY_ID[j.anchorCityId] : null;
   const route = j.route?.length ? j.route : anchor ? [anchor] : [];
 
@@ -116,13 +126,21 @@ export default function JourneyScreen() {
         }
       />
 
-      {route.length || current ? (
-        <RouteMap route={route} pins={placePins} current={live ? current : null} height={live ? 280 : 220} />
-      ) : (
-        <View style={{ height: 180, borderRadius: radius.lg, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Ionicons name="navigate-circle-outline" size={40} color={colors.cyan} />
-          <Text style={type.small}>{live ? 'Waiting for your first GPS fix…' : 'No route recorded'}</Text>
-        </View>
+      <GoogleMap
+        testID="journey-map"
+        route={route}
+        markers={placePins}
+        me={live && mine && (live_.fix ?? current) ? { lat: (live_.fix ?? current)!.lat, lng: (live_.fix ?? current)!.lng, accuracy: live_.fix?.accuracy ?? null } : null}
+        followMe={live && mine}
+        center={anchor ? { lat: anchor.lat, lng: anchor.lng } : null}
+        zoom={15}
+        height={live ? 300 : 230}
+      />
+      {live && mine && !!live_.place && (
+        <Row gap={6} style={{ marginTop: 8 }}>
+          <Ionicons name="location" size={14} color={colors.cyan} />
+          <Text style={type.small} testID="journey-current-place">Now at {live_.place.label}</Text>
+        </Row>
       )}
 
       {mine && live && t.error && <InfoText text={t.error} icon="warning" />}

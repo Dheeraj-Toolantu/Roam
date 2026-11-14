@@ -151,6 +151,9 @@ export function inviteLink(group: Pick<Group, 'inviteCode'>) {
 
 export async function leaveGroup(me: string, group: Group) {
   if (group.ownerId === me) throw new Error('The trip owner cannot leave. Transfer ownership or delete the trip.');
+  // Stop live location sharing with this crew before losing access
+  const { liveShare } = await import('./liveShare');
+  await liveShare.disable(group.id).catch(() => {});
   // Financial records are retained (BR-012); member name stays for history.
   await updateDoc(doc(db, 'groups', group.id), {
     memberIds: arrayRemove(me),

@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, Text, View } from 'react-native';
 
+import { LocationChip } from '@/components/LocationChip';
 import { PostCard } from '@/components/PostCard';
 import { Avatar, Card, Empty, Field, IconButton, Pill, QuickAction, Row, Screen, SectionTitle } from '@/components/ui';
 import { useMe } from '@/lib/session';
@@ -58,6 +59,8 @@ export default function Home() {
         </Pressable>
       </Row>
 
+      <LocationChip onPress={() => router.push('/live-map')} />
+
       <Pressable onPress={() => router.push('/explore')}>
         <View pointerEvents="none">
           <Field icon="search" placeholder="Search places, travellers, experiences…" editable={false} />
@@ -68,7 +71,7 @@ export default function Home() {
         <QuickAction testID="qa-start" icon="play-circle-outline" label="Start Journey" colors={['#8B5CF6', '#6366F1']} onPress={() => router.push(current ? `/journey/${current.id}` : '/journey/start')} />
         <QuickAction testID="qa-plan" icon="calendar-outline" label="Plan Trip" colors={['#22D3EE', '#3B82F6']} onPress={() => router.push('/planner')} />
         <QuickAction testID="qa-crew" icon="people-outline" label="Join Crew" colors={['#F97316', '#EC4899']} onPress={() => router.push('/crew')} />
-        <QuickAction testID="qa-split" icon="wallet-outline" label="ROAM Split" colors={['#F59E0B', '#EF4444']} onPress={() => router.push('/crew')} />
+        <QuickAction testID="qa-live-map" icon="map-outline" label="Live Map" colors={['#22C55E', '#0EA5E9']} onPress={() => router.push('/live-map')} />
       </Row>
 
       <SectionTitle title={current ? 'My Current Journey' : 'Your journeys'} action={journeys.length ? 'See all' : undefined} onAction={() => router.push('/journeys')} />

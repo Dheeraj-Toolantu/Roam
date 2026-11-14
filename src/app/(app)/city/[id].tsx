@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { RouteMap } from '@/components/maps';
+import { GoogleMap } from '@/components/GoogleMap';
 import { PostCard } from '@/components/PostCard';
 import { Button, Card, Chip, Empty, ErrorText, Header, Loading, Row, Screen, SectionTitle, type IconName } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
@@ -101,7 +101,7 @@ export default function CityScreen() {
       </Card>
 
       <SectionTitle title="On the map" />
-      <RouteMap route={[]} pins={[{ lat: city.lat, lng: city.lng, label: city.name, color: colors.pink, size: 9 }]} height={170} />
+      <GoogleMap testID="city-map" markers={[{ id: city.id, lat: city.lat, lng: city.lng, title: city.name, description: city.tagline, color: colors.pink }]} center={{ lat: city.lat, lng: city.lng }} zoom={11} height={200} />
       <Text style={[type.tiny, { marginTop: 6 }]}>Memories are shown at city level only to protect travellers’ privacy.</Text>
 
       <SectionTitle title="Public memories" />

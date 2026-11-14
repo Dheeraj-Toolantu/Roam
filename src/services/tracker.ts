@@ -4,6 +4,7 @@ import { CITY_BY_ID } from '../data/cities';
 import { detectedCityDeparture, haversineKm, nearestCity, shouldRecord, type GeoPoint } from '../logic/journey';
 import type { Journey } from '../types';
 import { saveLocationBatch, setPresence, type LocationPoint } from './journeys';
+import { liveLocation } from './location';
 
 /**
  * Foreground journey tracker.
@@ -66,8 +67,7 @@ class JourneyTracker {
 
   async requestPermission(): Promise<boolean> {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      const granted = status === 'granted';
+      const granted = await liveLocation.ensurePermission();
       this.set({ permission: granted ? 'granted' : 'denied' });
       return granted;
     } catch (e) {
@@ -111,6 +111,8 @@ class JourneyTracker {
 
   /** Exposed so tests and the web simulator can feed fixes. */
   onFix(fix: GeoPoint) {
+    // Every fix also updates the app-wide live location (map dot, place name, crew sharing).
+    liveLocation.ingest({ lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy ?? null, timestamp: fix.timestamp });
     if (!this.journey || this.journey.status !== 'active') return;
     const prev = this.state.lastFix;
     if (!shouldRecord(prev, fix)) return;

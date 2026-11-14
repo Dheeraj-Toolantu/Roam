@@ -13,6 +13,7 @@ import { addTimelineItem, subscribeMyGroups } from '@/services/crew';
 import { addActivity, getActiveJourney } from '@/services/journeys';
 import { pickMedia, uploadMedia, type PickedMedia } from '@/services/media';
 import { createPost } from '@/services/social';
+import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
 import { colors, gradients, radius, type } from '@/theme';
@@ -35,6 +36,7 @@ export default function Capture() {
   const [crewId, setCrewId] = useState<string | null>(params.groupId ?? null);
   const [progress, setProgress] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const here = useLiveLocation({ detect: true });
 
   useEffect(() => {
     getActiveJourney(me.uid).then(setJourney).catch(() => setJourney(null));
@@ -69,7 +71,7 @@ export default function Capture() {
       const url = media ? await uploadMedia(me.uid, media, 'media', setProgress) : null;
       const fix = await tracker.getCurrentPosition();
       const city = fix ? nearestCity(fix) : null;
-      const cityName = city?.name ?? journey?.cities[journey.cities.length - 1] ?? null;
+      const cityName = city?.name ?? here.place?.city ?? journey?.cities[journey.cities.length - 1] ?? null;
       const type = media?.type === 'video' ? 'video' : media ? 'photo' : 'note';
       if (journey) {
         await addActivity(journey.id, {
@@ -144,6 +146,11 @@ export default function Capture() {
 
       <Field testID="capture-caption" placeholder="Say something about this moment…" value={caption} onChangeText={setCaption} multiline />
       <Field testID="capture-place" icon="location-outline" placeholder="Place (e.g. Baga Beach)" value={place} onChangeText={setPlace} />
+      {!!here.place && !place && (
+        <Row style={{ marginTop: -6, marginBottom: 12 }}>
+          <Chip testID="use-current-place" icon="navigate" label={`Use current location: ${here.place.label}`} onPress={() => setPlace(here.place!.label)} />
+        </Row>
+      )}
 
       <Text style={[type.small, { fontWeight: '600', marginBottom: 8 }]}>Share with</Text>
       <Row style={{ flexWrap: 'wrap', marginBottom: 6 }}>

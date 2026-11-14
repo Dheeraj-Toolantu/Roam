@@ -7,6 +7,7 @@ import { CITIES } from '@/data/cities';
 import { useMe } from '@/lib/session';
 import { toMinor } from '@/logic/split';
 import { createGroup } from '@/services/crew';
+import { useLiveLocation } from '@/services/location';
 import { errorMessage } from '@/services/util';
 import { type } from '@/theme';
 
@@ -24,6 +25,8 @@ export default function CreateTrip() {
   const [budget, setBudget] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const here = useLiveLocation({ detect: true });
+  const hereCity = here.place?.cityId ? CITIES.find((c) => c.id === here.place!.cityId)?.name : here.place?.city;
 
   const save = async () => {
     setErr(null);
@@ -48,7 +51,10 @@ export default function CreateTrip() {
       <Field testID="trip-name" label="Trip name" value={name} onChangeText={setName} placeholder="Goa Trip 2026 🌴" maxLength={60} />
       <Field testID="trip-destination" label="Destination" value={destination} onChangeText={setDestination} placeholder="Goa" icon="location-outline" />
       <Row style={{ flexWrap: 'wrap', marginTop: -4, marginBottom: 12 }}>
-        {CITIES.slice(0, 8).map((c) => (
+        {!!hereCity && (
+          <Chip testID="destination-here" icon="navigate" label={`Near me: ${hereCity}`} active={destination === hereCity} onPress={() => setDestination(hereCity)} />
+        )}
+        {CITIES.slice(0, 8).filter((c) => c.name !== hereCity).map((c) => (
           <Chip key={c.id} label={`${c.emoji} ${c.name}`} active={destination === c.name} onPress={() => setDestination(c.name)} />
         ))}
       </Row>

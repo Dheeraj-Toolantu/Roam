@@ -137,16 +137,39 @@ try {
     await shot(a, '04-home');
   });
 
+  await step('Live location: current location is detected automatically after sign-in', async () => {
+    await a.getByTestId('location-label').filter({ visible: true }).first().waitFor();
+    await a.waitForFunction(() => /Goa/.test(document.querySelector('[data-testid="location-label"]')?.textContent ?? ''), null, { timeout: 20_000 });
+    await text(a, 'LIVE');
+  });
+
+  await step('Google Maps: Live Map renders a Google map that follows the live position', async () => {
+    await tid(a, 'qa-live-map').click();
+    await a.locator('[data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
+    await a.waitForFunction(() => /Goa/.test(document.querySelector('[data-testid="current-place"]')?.textContent ?? ''), null, { timeout: 20_000 });
+    const before = await tid(a, 'current-coords').textContent();
+    await A.context.setGeolocation({ latitude: 15.5440, longitude: 73.7553, accuracy: 8 }); // move to Calangute
+    await a.waitForFunction((b) => document.querySelector('[data-testid="current-coords"]')?.textContent !== b, before, { timeout: 15_000 });
+    const after = await tid(a, 'current-coords').textContent();
+    if (!after.startsWith('15.544')) throw new Error(`live position did not update: ${after}`);
+    await a.waitForTimeout(1500);
+    await shot(a, '04b-live-map');
+    await A.context.setGeolocation(BAGA);
+    await a.goto(BASE + '/');
+  });
+
   await step('Login/logout persists account', async () => {
     await signUp(b, 'Priya Sharma', `priya${run}`.slice(0, 20), `priya.${run}@roam.test`, { fromOnboarding: false });
   });
 
   await step('AC-002/003 Start journey with location permission; GPS points recorded and city detected', async () => {
     await tid(a, 'qa-start').click();
+    await a.waitForFunction(() => /Starting from .*Goa/.test(document.querySelector('[data-testid="start-location"]')?.textContent ?? ''), null, { timeout: 15_000 });
     await tid(a, 'journey-title').fill('Goa Trip 2026');
     await shot(a, '05-start-journey');
     await tid(a, 'start-journey').click();
     await text(a, 'Recording');
+    await a.locator('[data-testid="journey-map"] [data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
     // Simulate a ride south along the coast from Baga: ~150 m per fix every ~0.7 s.
     // (Bigger jumps would be rejected by the tracker's implausible-speed filter.)
     for (let i = 1; i <= 10; i++) {
@@ -172,6 +195,7 @@ try {
     await tid(a, 'capture-caption').waitFor();
     const [chooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'capture-upload').click()]);
     await chooser.setFiles({ name: 'baga.png', mimeType: 'image/png', buffer: png() });
+    await tid(a, 'use-current-place').filter({ visible: true }).first().waitFor();
     await tid(a, 'capture-caption').fill('Sunset at Baga Beach 🌅');
     await tid(a, 'capture-place').fill('Baga Beach');
     await tid(a, 'vis-public').click();
@@ -230,6 +254,32 @@ try {
     await tid(b, 'join-submit').click();
     await tid(b, 'trip-title').waitFor();
     await text(b, '2 members');
+  });
+
+  await step('Crew live location: opt-in sharing is visible to crew members on the Google map, and stops when turned off', async () => {
+    await b.getByRole('tab', { name: 'Map' }).filter({ visible: true }).first().click();
+    await b.locator('[data-testid="crew-map"] .gm-style').first().waitFor({ timeout: 30_000 });
+    await text(b, 'Nobody is sharing live location in this trip yet.');
+    await tid(b, 'toggle-share-live').filter({ visible: true }).first().click();
+    await text(b, 'Sharing');
+    await a.goto(`${BASE}/trip/${tripId}`);
+    await a.getByRole('tab', { name: 'Map' }).filter({ visible: true }).first().click();
+    await a.locator('[data-testid="crew-map"] .gm-style').first().waitFor({ timeout: 30_000 });
+    await text(a, /Live · /);
+    await a.getByText('Priya Sharma', { exact: true }).filter({ visible: true }).first().waitFor();
+    await a.waitForTimeout(1500);
+    await shot(a, '10b-crew-live-map');
+    await a.goto(BASE + '/live-map');
+    await text(a, 'Crew live now');
+    await a.locator('[data-testid^="crew-live-"]').filter({ visible: true }).first().waitFor();
+    await a.goto(BASE + '/notifications');
+    await text(a, /Priya Sharma is sharing live location/);
+    // Priya stops sharing → disappears for Dheeraj
+    await tid(b, 'toggle-share-live').filter({ visible: true }).first().click();
+    await a.goto(`${BASE}/trip/${tripId}`);
+    await a.getByRole('tab', { name: 'Map' }).filter({ visible: true }).first().click();
+    await text(a, 'Nobody is sharing live location in this trip yet.');
+    await b.goto(`${BASE}/trip/${tripId}`);
   });
 
   await step('AC-010/011 Shared moment appears on the group timeline and notifies members', async () => {
@@ -360,7 +410,7 @@ try {
 } finally {
   await browser.close();
   server.close();
-  const real = consoleErrors.filter((e) => !/permission-denied|Missing or insufficient permissions|ERR_|404|Failed to load resource/i.test(e));
+  const real = consoleErrors.filter((e) => !/permission-denied|Missing or insufficient permissions|ERR_|404|Failed to load resource|Google Maps JavaScript API/i.test(e));
   console.log(`\n${results.length - failures} passed, ${failures} failed`);
   if (real.length) console.log(`\nBrowser errors (${real.length}):\n` + real.slice(0, 15).join('\n'));
   console.log(`Screenshots: ${SHOTS}`);

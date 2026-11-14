@@ -16,6 +16,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { Platform } from 'react-native';
 
 import { ensureUserDoc, isAdmin as checkAdmin, subscribeProfile } from '../services/users';
+import { liveShare } from '../services/liveShare';
 import { tracker } from '../services/tracker';
 import type { UserProfile } from '../types';
 import { ONBOARDING_KEY } from './constants';
@@ -127,6 +128,7 @@ export async function signInWithProvider(kind: 'google' | 'apple') {
 
 export async function signOut() {
   await tracker.stop().catch(() => {});
+  await liveShare.stopAll().catch(() => {});
   await fbSignOut(auth);
 }
 

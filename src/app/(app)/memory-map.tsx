@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { Globe, RouteMap } from '@/components/maps';
+import { GoogleMap } from '@/components/GoogleMap';
+import { Globe } from '@/components/maps';
 import { PostCard } from '@/components/PostCard';
 import { Chip, Empty, ErrorText, Field, Header, InfoText, Loading, Row, Screen, SectionTitle, Segmented } from '@/components/ui';
 import { CITIES, CITY_BY_ID } from '@/data/cities';
@@ -96,7 +97,14 @@ export default function MemoryMapScreen() {
             {view === 'globe' ? (
               <Globe size={280} markers={pins} rotate={!sel} focus={sel ? { lat: sel.lat, lng: sel.lng } : null} />
             ) : (
-              <RouteMap route={[]} pins={pins.length ? pins : [{ lat: 20, lng: 78, label: 'No memories yet', color: colors.textDim }]} height={260} style={{ width: '100%' }} />
+              <GoogleMap
+                testID="memory-google-map"
+                markers={withMemories.map(({ c, n }) => ({ id: c.id, lat: c.lat, lng: c.lng, title: c.name, description: `${n} public memories`, color: colors.pink, label: String(n), onPress: () => setSelected(c.id) }))}
+                center={sel ? { lat: sel.lat, lng: sel.lng } : { lat: 20, lng: 78 }}
+                zoom={sel ? 10 : 3}
+                height={300}
+                style={{ width: '100%' }}
+              />
             )}
           </View>
           <InfoText icon="shield-checkmark" text="Pins are placed at the city centre. Exact locations of travellers are never shown." />

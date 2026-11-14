@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { RouteMap } from '@/components/maps';
+import { CrewLiveMap } from '@/components/CrewLiveMap';
 import { confirmAsync } from '@/components/PostCard';
 import {
   Avatar,
@@ -199,24 +199,7 @@ export default function TripDashboard() {
           </View>
         ))}
 
-      {tab === 'map' && (
-        <>
-          <RouteMap
-            route={journeys.flatMap((j) => j.route ?? []).slice(0, 600)}
-            pins={[
-              ...(city ? [{ lat: city.lat, lng: city.lng, label: city.name, color: colors.yellow, size: 9 }] : []),
-              ...journeys.filter((j) => j.lastPoint).map((j) => ({ lat: j.lastPoint!.lat, lng: j.lastPoint!.lng, color: colors.pink })),
-            ]}
-            height={280}
-          />
-          <View style={{ marginTop: 10 }}>
-            <InfoText
-              icon="shield-checkmark"
-              text={`Showing ${journeys.length} journey${journeys.length === 1 ? '' : 's'} members chose to share with the crew. Live location is never shared automatically.`}
-            />
-          </View>
-        </>
-      )}
+      {tab === 'map' && <CrewLiveMap group={group} me={me} journeys={journeys} />}
 
       {tab === 'members' && (
         <>

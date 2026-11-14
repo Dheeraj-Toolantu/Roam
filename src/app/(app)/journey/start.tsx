@@ -8,6 +8,7 @@ import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Row, Screen } f
 import { useMe } from '@/lib/session';
 import { subscribeMyGroups } from '@/services/crew';
 import { getJourney, startJourney } from '@/services/journeys';
+import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
 import { colors, gradients, radius, type } from '@/theme';
@@ -30,6 +31,7 @@ export default function StartJourney() {
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const here = useLiveLocation({ detect: true });
 
   useEffect(() => subscribeMyGroups(me.uid, setGroups), [me.uid]);
   useEffect(() => {
@@ -70,6 +72,16 @@ export default function StartJourney() {
         </Text>
       </LinearGradient>
 
+      <Row gap={8} style={{ marginBottom: 16 }}>
+        <Ionicons name="location" size={18} color={here.permission === 'denied' ? colors.red : colors.cyan} />
+        <Text style={[type.small, { flex: 1 }]} testID="start-location">
+          {here.place
+            ? `Starting from ${here.place.label}`
+            : here.permission === 'denied'
+              ? 'Location permission is off — ROAM will ask again when you start.'
+              : 'Detecting your current location…'}
+        </Text>
+      </Row>
       <Text style={[type.h3, { marginBottom: 10 }]}>Trip Type</Text>
       <View style={{ gap: 10, marginBottom: 18 }}>
         <TypeOption icon="person-outline" title="Solo Trip" subtitle="Just you and the road" on={kind === 'solo'} onPress={() => setKind('solo')} testID="type-solo" />

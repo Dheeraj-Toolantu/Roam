@@ -299,3 +299,43 @@ describe('ROAM SPLIT (BR-008..BR-012)', () => {
     await assertFails(setDoc(doc(as('alice'), 'groups/g1/meta/balances'), { balances: {} }));
   });
 });
+
+describe('crew live location (BR-006: opt-in, members only)', () => {
+  const live = (uid: string, extra: Record<string, unknown> = {}) => ({ uid, name: uid, lat: 15.5553, lng: 73.7517, accuracy: 12, updatedAt: Date.now(), ...extra });
+  beforeEach(async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'groups/g1'), group('alice', ['alice', 'bob']));
+    });
+  });
+
+  it('members share their own live location; others in the crew can read it', async () => {
+    await assertSucceeds(setDoc(doc(as('bob'), 'groups/g1/live/bob'), live('bob')));
+    await assertSucceeds(getDoc(doc(as('alice'), 'groups/g1/live/bob')));
+    await assertSucceeds(getDocs(collection(as('alice'), 'groups/g1/live')));
+  });
+
+  it('non-members can neither read nor publish live locations', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'groups/g1/live/bob'), live('bob'));
+    });
+    await assertFails(getDoc(doc(as('eve'), 'groups/g1/live/bob')));
+    await assertFails(getDocs(collection(as('eve'), 'groups/g1/live')));
+    await assertFails(setDoc(doc(as('eve'), 'groups/g1/live/eve'), live('eve')));
+  });
+
+  it('nobody can publish a location for someone else or add extra fields', async () => {
+    await assertFails(setDoc(doc(as('bob'), 'groups/g1/live/alice'), live('alice')));
+    await assertFails(setDoc(doc(as('bob'), 'groups/g1/live/bob'), live('bob', { address: '12 Beach Rd' })));
+    await assertFails(setDoc(doc(as('bob'), 'groups/g1/live/bob'), live('bob', { lat: 123 })));
+  });
+
+  it('users can always stop sharing; others cannot delete it (except admins)', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'groups/g1/live/bob'), live('bob'));
+      await setDoc(doc(db, 'groups/g1/live/carol'), live('carol'));
+    });
+    await assertSucceeds(deleteDoc(doc(as('bob'), 'groups/g1/live/bob')));
+    await assertFails(deleteDoc(doc(as('eve'), 'groups/g1/live/carol')));
+    await assertSucceeds(deleteDoc(doc(as('alice'), 'groups/g1/live/carol'))); // admin clears stale entry
+  });
+});

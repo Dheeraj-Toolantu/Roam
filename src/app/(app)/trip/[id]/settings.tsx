@@ -7,6 +7,7 @@ import { Avatar, Button, Card, ErrorText, Field, Header, InfoText, Loading, Pill
 import { memberName, useGroup } from '@/hooks/useTrip';
 import { TripUnavailable } from '@/components/TripUnavailable';
 import { useMe } from '@/lib/session';
+import { liveShare, useIsSharing } from '@/services/liveShare';
 import { formatMoney, toMinor } from '@/logic/split';
 import { leaveGroup, removeMember, setAdmin, setVideoExcluded, updateGroup } from '@/services/crew';
 import { errorMessage } from '@/services/util';
@@ -16,6 +17,7 @@ export default function TripSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const group = useGroup(id);
+  const sharingLive = useIsSharing(id);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStart] = useState('');
@@ -82,7 +84,14 @@ export default function TripSettings() {
           value={!excluded}
           onChange={(v) => act(() => setVideoExcluded(group, me.uid, !v))}
         />
-        <InfoText icon="shield-checkmark" text="Your live location is never shared with the crew. Share a journey with the crew explicitly if you want it on the group map." />
+        <Toggle
+          testID="settings-share-live"
+          label="Share my live location with this crew"
+          hint="Off by default. Members see you on the trip map only while this is on."
+          value={sharingLive}
+          onChange={(v) => act(() => (v ? liveShare.enable(group, me) : liveShare.disable(group.id)))}
+        />
+        <InfoText icon="shield-checkmark" text="Joining a crew never shares your location automatically — only you can turn live sharing on." />
       </Card>
 
       {isAdmin ? (

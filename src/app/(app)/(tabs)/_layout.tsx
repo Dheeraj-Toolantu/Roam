@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router/tabs';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { IconName } from '@/components/ui';
+import { useMe } from '@/lib/session';
+import { liveLocation } from '@/services/location';
+import { liveShare } from '@/services/liveShare';
 import { colors, gradients } from '@/theme';
 
 const TABS: Record<string, { label: string; icon: IconName; iconOn: IconName }> = {
@@ -63,6 +67,15 @@ function TabBar({ state, navigation }: BarProps) {
 }
 
 export default function TabsLayout() {
+  const me = useMe();
+  // Automatically detect the user's current location once signed in, and resume any
+  // crew live-location sharing the user had turned on before the app was closed.
+  useEffect(() => {
+    void liveLocation.detect();
+  }, []);
+  useEffect(() => {
+    void liveShare.init({ uid: me.uid, displayName: me.displayName });
+  }, [me.uid, me.displayName]);
   return (
     <Tabs
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
