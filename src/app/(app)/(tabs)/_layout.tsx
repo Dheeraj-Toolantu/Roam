@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Tabs } from 'expo-router/tabs';
+import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useEffect } from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -21,11 +21,6 @@ const TABS: Record<string, { label: string; icon: IconName; iconOn: IconName }> 
   journeys: { label: 'Journeys', icon: 'map-outline', iconOn: 'map' },
   crew: { label: 'Crew', icon: 'people-outline', iconOn: 'people' },
   profile: { label: 'Profile', icon: 'person-outline', iconOn: 'person' },
-};
-
-type BarProps = {
-  state: { index: number; routes: { key: string; name: string }[] };
-  navigation: { navigate: (name: string) => void; emit: (e: { type: 'tabPress'; target: string; canPreventDefault: true }) => { defaultPrevented: boolean } };
 };
 
 function TabItem({ route, focused, onPress }: { route: { key: string; name: string }; focused: boolean; onPress: () => void }) {
@@ -83,7 +78,8 @@ function CaptureButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function TabBar({ state, navigation }: BarProps) {
+/** Custom tab bar. Uses the router-provided emitter/navigateToTab (typed by BottomTabBarProps). */
+function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -92,8 +88,8 @@ function TabBar({ state, navigation }: BarProps) {
           if (!TABS[route.name]) return null;
           const focused = state.index === i;
           const onPress = () => {
-            const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
+            const e = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !e.defaultPrevented) navigateToTab(route.key);
           };
           return route.name === 'capture' ? (
             <CaptureButton key={route.key} onPress={onPress} />
@@ -121,7 +117,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
-      tabBar={(props) => <TabBar {...(props as unknown as BarProps)} />}>
+      tabBar={(props) => <TabBar {...props} />}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="explore" />
       <Tabs.Screen name="capture" />
