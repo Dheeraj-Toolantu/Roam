@@ -7,7 +7,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { CrewLiveMap } from '@/components/CrewLiveMap';
 import { confirmAsync } from '@/components/PostCard';
-import { IconBadge, type IconGradient } from '@/components/motion';
+import { Appear, IconBadge, type IconGradient } from '@/components/motion';
 import { Avatar, AvatarStack, Button, Card, Chip, Empty, ErrorText, Field, IconButton, Loading, Pill, ProgressBar, Row, Screen, Segmented, type IconName, goBackOr } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { memberName, tripDates, useTripMoney } from '@/hooks/useTrip';
@@ -98,6 +98,21 @@ export default function TripDashboard() {
           </Pressable>
         ))}
       </View>
+
+      {!!group.endDate && group.endDate < new Date().toISOString().slice(0, 10) && (
+        <Appear>
+          <Card style={{ marginTop: 14, borderColor: colors.pink }} onPress={() => router.push(`/magic?groupId=${id}&fresh=1`)} testID="group-story-banner">
+            <Row gap={12}>
+              <IconBadge icon="film" gradient="candy" size={46} float />
+              <View style={{ flex: 1 }}>
+                <Text style={type.h3}>Trip&apos;s over! Make your group story 🎬</Text>
+                <Text style={type.small}>Everyone&apos;s photos & videos in one cinematic video with music — share it on WhatsApp or Facebook.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Row>
+          </Card>
+        </Appear>
+      )}
 
       {summary && (
         <Card style={{ marginTop: 14 }} onPress={() => router.push(`/trip/${id}/split`)} testID="split-summary">

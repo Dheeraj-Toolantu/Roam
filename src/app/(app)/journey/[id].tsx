@@ -94,6 +94,8 @@ export default function JourneyScreen() {
       await end(j);
       tracker.dismissEndSuggestion();
     });
+    // Trip over → go straight to the auto-generated cinematic story
+    router.push(`/magic?journeyId=${j.id}&fresh=1`);
   };
 
   const live = j.status !== 'completed';

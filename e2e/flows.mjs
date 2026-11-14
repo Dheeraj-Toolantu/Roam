@@ -212,9 +212,12 @@ try {
     await text(a, 'Journey paused');
     await a.getByLabel('Resume journey').click();
     await text(a, 'Journey active');
-    await a.getByLabel('End journey').click();
+    await a.getByLabel('End journey').filter({ visible: true }).first().click();
+    // Trip over → the cinematic story opens automatically
+    await tid(a, 'trip-complete-banner').filter({ visible: true }).first().waitFor();
+    await a.goBack();
     await text(a, 'Completed');
-    await tid(a, 'make-magic').waitFor();
+    await tid(a, 'make-magic').filter({ visible: true }).first().waitFor();
     await shot(a, '07-journey-completed');
   });
 
@@ -232,6 +235,63 @@ try {
     await text(a, 'Journey Summary');
     await tid(a, 'magic-save').click();
     await text(a, 'Saved ✓');
+  });
+
+  await step('Cinematic story video: trip photos + route + music rendered to a shareable 9:16 video', async () => {
+    await tid(a, 'export-reel').filter({ visible: true }).first().click();
+    await tid(a, 'music-sunset').filter({ visible: true }).first().click();
+    await tid(a, 'create-story-video').filter({ visible: true }).first().click();
+    await tid(a, 'story-progress').filter({ visible: true }).first().waitFor();
+    const video = a.getByTestId('story-video').filter({ visible: true }).first();
+    await video.waitFor({ timeout: 120_000 });
+    const info = await video.evaluate(async (el) => {
+      const v = el;
+      v.muted = true;
+      if (v.readyState < 1) await new Promise((r) => v.addEventListener('loadedmetadata', r, { once: true }));
+      // MediaRecorder output may not declare a duration until scanned: seek far to force it
+      if (!isFinite(v.duration)) {
+        v.currentTime = 1e6;
+        await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+      }
+      const frames = [];
+      const cv = document.createElement('canvas');
+      cv.width = 180;
+      cv.height = 320;
+      const cx = cv.getContext('2d');
+      let bright = 0;
+      for (const t of [1.5, 5, 10, 16, 24, 28.5]) {
+        v.currentTime = Math.min(t, (isFinite(v.duration) ? v.duration : 30) - 0.2);
+        await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+        cx.drawImage(v, 0, 0, 180, 320);
+        const d = cx.getImageData(0, 0, 180, 320).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+        bright = Math.max(bright, sum / (d.length / 4) / 3);
+        frames.push(cv.toDataURL('image/jpeg', 0.8));
+      }
+      // play a moment to confirm the audio track decodes
+      v.currentTime = 2;
+      await v.play().catch(() => {});
+      await new Promise((r) => setTimeout(r, 1500));
+      v.pause();
+      return {
+        w: v.videoWidth, h: v.videoHeight, duration: v.duration, bright, frames,
+        audioBytes: v.webkitAudioDecodedByteCount ?? -1,
+        mime: el.dataset.mime, bytes: Number(el.dataset.bytes), hasAudio: el.dataset.hasAudio,
+      };
+    });
+    console.log(`    video: ${info.mime} ${info.w}x${info.h} ${info.duration.toFixed(1)}s ${(info.bytes / 1024).toFixed(0)}KB audioDecoded=${info.audioBytes}B`);
+    if (info.w !== 720 || info.h !== 1280) throw new Error(`bad size ${info.w}x${info.h}`);
+    if (!(info.duration > 27 && info.duration < 33)) throw new Error(`bad duration ${info.duration}`);
+    if (info.bytes < 100_000) throw new Error(`video too small: ${info.bytes}`);
+    if (info.hasAudio !== '1' || !(info.audioBytes > 0)) throw new Error(`no music in video (audioDecoded=${info.audioBytes})`);
+    if (info.bright < 20) throw new Error('video frames are black');
+    // save sampled frames for visual review
+    const { writeFileSync } = await import('node:fs');
+    info.frames.forEach((f, i) => writeFileSync(join(SHOTS, `story-frame-${i}.jpg`), Buffer.from(f.split(',')[1], 'base64')));
+    await shot(a, '09b-story-video-ready');
+    const [dl] = await Promise.all([a.waitForEvent('download'), tid(a, 'download-story').filter({ visible: true }).first().click()]);
+    if (!/^roam-goa-trip-2026\.(mp4|webm)$/.test(dl.suggestedFilename())) throw new Error(`bad file name ${dl.suggestedFilename()}`);
   });
 
   await step('AC-009 Create a crew trip with a budget', async () => {

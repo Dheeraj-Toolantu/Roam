@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { City } from '../data/cities';
+import { previewMusic, stopPreviewMusic } from '../lib/musicPlayer';
+import type { TrackId } from '../logic/musicScore';
 import { colors, gradients, radius, type } from '../theme';
 import { Globe, RouteMap } from './maps';
 import { Logo, Row } from './ui';
@@ -43,13 +45,23 @@ export interface MagicData {
  * Renders the 7 ROAM MAGIC scenes (BRD §8) in real time from journey data.
  * Pure UI: deterministic for a given (data, template, t).
  */
-export function MagicPlayer({ data, template, autoPlay = true }: { data: MagicData; template: Template; autoPlay?: boolean }) {
+export function MagicPlayer({ data, template, autoPlay = true, music = 'none' }: { data: MagicData; template: Template; autoPlay?: boolean; music?: TrackId }) {
   const durations = TEMPLATES.find((t) => t.id === template)!.durations;
   const total = durations.reduce((a, b) => a + b, 0);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(autoPlay);
 
   useEffect(() => setT(0), [template]);
+  // Soundtrack follows play/pause (web; silent on native for now)
+  const tRef = useRef(0);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+  useEffect(() => {
+    if (playing) previewMusic(music, tRef.current, total);
+    else stopPreviewMusic();
+    return () => stopPreviewMusic();
+  }, [playing, music, total]);
   useEffect(() => {
     if (!playing) return;
     const iv = setInterval(() => {
