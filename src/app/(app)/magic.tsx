@@ -5,32 +5,33 @@ import { Share, Text, View } from 'react-native';
 
 import { MagicPlayer, TEMPLATES, type MagicData, type Template } from '@/components/MagicPlayer';
 import { toast } from '@/components/PostCard';
-import { Confetti, tap } from '@/components/motion';
+import { Appear, Confetti, tap } from '@/components/motion';
+import { StoryVideoExporter } from '@/components/StoryVideoExporter';
 import { Button, Card, Chip, Empty, ErrorText, Header, InfoText, Loading, Row, Screen } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { db } from '@/lib/firebase';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
+import { TRACKS, type TrackId } from '@/logic/musicScore';
 import { subscribeGroup, subscribeTimeline } from '@/services/crew';
 import { subscribeActivities, subscribeJourney } from '@/services/journeys';
 import { notifyMany } from '@/services/notifications';
 import { createPost } from '@/services/social';
 import { errorMessage, tsToMs } from '@/services/util';
-import { type } from '@/theme';
+import { colors, type } from '@/theme';
 import type { Activity, Group, Journey, TimelineItem } from '@/types';
 
-const MUSIC = ['Wanderlust (ROAM Originals)', 'Sunset Drive', 'Mountain Air', 'No music'];
 
 /** ROAM MAGIC – personal (journeyId) or group (groupId) cinematic video. */
 export default function Magic() {
   const me = useMe();
-  const { journeyId, groupId } = useLocalSearchParams<{ journeyId?: string; groupId?: string }>();
+  const { journeyId, groupId, fresh } = useLocalSearchParams<{ journeyId?: string; groupId?: string; fresh?: string }>();
   const [journey, setJourney] = useState<Journey | null | undefined>(journeyId ? undefined : null);
   const [acts, setActs] = useState<Activity[]>([]);
   const [group, setGroup] = useState<Group | null | undefined>(groupId ? undefined : null);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [template, setTemplate] = useState<Template>('cinematic');
-  const [music, setMusic] = useState(MUSIC[0]);
+  const [music, setMusic] = useState<TrackId>('wanderlust');
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -90,6 +91,23 @@ export default function Magic() {
     return null;
   }, [journey, acts, group, timeline]);
 
+  const storyData = useMemo(
+    () =>
+      data && {
+        title: data.title,
+        subtitle: data.subtitle,
+        cityName: data.city?.name ?? null,
+        cityEmoji: data.city?.emoji ?? null,
+        colors: (data.city?.colors ?? ['#8B5CF6', '#EC4899']) as [string, string],
+        country: data.country,
+        route: data.route,
+        places: data.places,
+        memories: data.memories,
+        stats: data.stats,
+      },
+    [data],
+  );
+
   if (journey === undefined || group === undefined) return <Screen><Loading label="Preparing your story…" /></Screen>;
   if (!data)
     return (
@@ -129,7 +147,15 @@ export default function Magic() {
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="✨ ROAM Magic Video" subtitle={isGroup ? 'Group cinematic video' : 'Personal cinematic video'} />
-      <MagicPlayer data={data} template={template} />
+      {fresh === '1' && (
+        <Appear>
+          <Card style={{ marginBottom: 14, borderColor: colors.violet }} testID="trip-complete-banner">
+            <Text style={type.h3}>🎉 Trip complete! Your story is ready</Text>
+            <Text style={[type.small, { marginTop: 4 }]}>We combined your photos, videos, route and stats into a cinematic story. Create the video below and share it with friends.</Text>
+          </Card>
+        </Appear>
+      )}
+      <MagicPlayer data={data} template={template} music={music} />
       <Confetti fire={savedId ? 1 : 0} />
 
       <Text style={[type.h3, { marginTop: 20, marginBottom: 10 }]}>Template</Text>
@@ -140,10 +166,11 @@ export default function Magic() {
       </Row>
       <Text style={[type.h3, { marginTop: 16, marginBottom: 10 }]}>Music</Text>
       <Row style={{ flexWrap: 'wrap' }}>
-        {MUSIC.map((m) => (
-          <Chip key={m} label={m} icon="musical-notes" active={music === m} onPress={() => setMusic(m)} />
+        {TRACKS.map((m) => (
+          <Chip key={m.id} label={`${m.emoji} ${m.label}`} active={music === m.id} onPress={() => setMusic(m.id)} testID={`music-${m.id}`} />
         ))}
       </Row>
+      {storyData && <StoryVideoExporter data={storyData} track={music} autoFocus={fresh === '1'} onCreated={() => void (!savedId && canSave && save())} />}
       {isGroup && (
         <Card style={{ marginTop: 16 }}>
           <Text style={type.small}>
@@ -191,7 +218,7 @@ export default function Magic() {
         )}
       </View>
       <View style={{ marginTop: 14 }}>
-        <InfoText text="Videos render live in the app from your journey. Exporting an MP4 file uses the server rendering pipeline (FFmpeg/Remotion), which is planned for the next phase." />
+        <InfoText icon="shield-checkmark" text="Story videos are created on your device from your trip's photos and videos. Nothing is posted anywhere until you choose to share it." />
       </View>
     </Screen>
   );
