@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Media storage. Users write only under their own folder; reads require sign-in.
+// Object paths are unguessable (uid + random id), and the Firestore document that
+// references a file carries the visibility rules for listing it.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function okMedia() {
+      return request.resource.size < 200 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
+    match /media/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || okMedia());
+    }
+    match /avatars/{uid}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid
+        && (request.resource == null || (request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*')));
+    }
+    match /receipts/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || okMedia());
+    }
+  }
+}
