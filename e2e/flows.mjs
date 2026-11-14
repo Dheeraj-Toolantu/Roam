@@ -158,6 +158,20 @@ try {
     await a.goto(BASE + '/');
   });
 
+  await step('Bottom tab bar: tapping each tab navigates (real touch taps)', async () => {
+    await a.goto(BASE + '/');
+    await a.getByTestId('tab-explore').first().waitFor();
+    const errorsBefore = consoleErrors.filter((e) => e.includes('pageerror')).length;
+    for (const [tab, path] of [['explore', '/explore'], ['journeys', '/journeys'], ['crew', '/crew'], ['profile', '/profile'], ['index', '/'], ['capture', '/capture']]) {
+      await a.getByTestId(`tab-${tab}`).filter({ visible: true }).first().tap();
+      await a.waitForURL((u) => new URL(u).pathname === path, { timeout: 10_000 }).catch(() => {
+        throw new Error(`tab-${tab} did not navigate to ${path} (at ${a.url()})`);
+      });
+    }
+    if (consoleErrors.filter((e) => e.includes('pageerror')).length > errorsBefore) throw new Error('page error while tapping tabs');
+    await a.getByTestId('tab-index').filter({ visible: true }).first().tap();
+  });
+
   await step('Login/logout persists account', async () => {
     await signUp(b, 'Priya Sharma', `priya${run}`.slice(0, 20), `priya.${run}@roam.test`, { fromOnboarding: false });
   });
@@ -193,15 +207,15 @@ try {
   });
 
   await step('AC-005 Capture: upload a photo to the active journey and share publicly', async () => {
-    await tid(a, 'journey-capture').click();
-    await tid(a, 'capture-caption').waitFor();
-    const [chooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'capture-upload').click()]);
+    await tid(a, 'journey-capture').filter({ visible: true }).first().click();
+    await tid(a, 'capture-caption').filter({ visible: true }).first().waitFor();
+    const [chooser] = await Promise.all([a.waitForEvent('filechooser'), tid(a, 'capture-upload').filter({ visible: true }).first().click()]);
     await chooser.setFiles({ name: 'baga.png', mimeType: 'image/png', buffer: png() });
     await tid(a, 'use-current-place').filter({ visible: true }).first().waitFor();
-    await tid(a, 'capture-caption').fill('Sunset at Baga Beach 🌅');
-    await tid(a, 'capture-place').fill('Baga Beach');
-    await tid(a, 'vis-public').click();
-    await tid(a, 'capture-save').click();
+    await tid(a, 'capture-caption').filter({ visible: true }).first().fill('Sunset at Baga Beach 🌅');
+    await tid(a, 'capture-place').filter({ visible: true }).first().fill('Baga Beach');
+    await tid(a, 'vis-public').filter({ visible: true }).first().click();
+    await tid(a, 'capture-save').filter({ visible: true }).first().click();
     await a.waitForURL(/journey\//, { timeout: 30_000 });
     await text(a, 'Baga Beach');
     await shot(a, '06-active-journey');
