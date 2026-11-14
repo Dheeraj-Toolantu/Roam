@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { CrewLiveMap } from '@/components/CrewLiveMap';
-import { confirmAsync } from '@/components/PostCard';
+import { confirmAsync, toast } from '@/components/PostCard';
 import { Appear, IconBadge, type IconGradient } from '@/components/motion';
 import { Avatar, AvatarStack, Button, Card, Chip, Empty, ErrorText, Field, IconButton, Loading, Pill, ProgressBar, Row, Screen, Segmented, type IconName, goBackOr } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
@@ -258,8 +258,8 @@ function MomentComposer({ groupId, memberIds, groupName, onDone }: { groupId: st
       )}
       <ErrorText text={err} />
       <Row>
-        <IconButton icon="images-outline" onPress={async () => setMedia(await pickMedia('library').catch(() => null))} accessibilityLabel="Attach photo or video" />
-        <IconButton icon="camera-outline" onPress={async () => setMedia(await pickMedia('camera').catch(() => null))} accessibilityLabel="Take photo" />
+        <IconButton icon="images-outline" onPress={() => pickMedia('library').then((m) => m && setMedia(m), (e) => toast(errorMessage(e)))} accessibilityLabel="Attach photo or video" />
+        <IconButton icon="camera-outline" onPress={() => pickMedia('camera').then((m) => m && setMedia(m), (e) => toast(errorMessage(e)))} accessibilityLabel="Take photo" />
         <View style={{ flex: 1 }} />
         <Button small variant="ghost" title="Cancel" onPress={onDone} />
         <Button small testID="moment-share" title="Share" onPress={save} loading={busy} />

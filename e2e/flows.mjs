@@ -47,6 +47,18 @@ async function makeClip(secs) {
   await ffmpeg(['-f', 'lavfi', '-i', `testsrc=size=160x120:rate=10`, '-t', String(secs), '-c:v', 'libvpx', '-b:v', '80k', out]);
   return out;
 }
+/** Android-style HEVC (H.265) MP4 — a codec desktop Chromium can't decode, so its length must come from the file header. */
+async function makeHevc(secs) {
+  const out = join(MEDIA_DIR, `VID_hevc_${secs}.mp4`);
+  await ffmpeg(['-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=10', '-t', String(secs), '-c:v', 'libx265', '-tag:v', 'hvc1', '-x265-params', 'log-level=none', out]);
+  return out;
+}
+/** A 12 MP-style camera photo well over the 5 MB avatar limit. */
+async function makeBigPhoto() {
+  const out = join(MEDIA_DIR, 'IMG_big.jpg');
+  await ffmpeg(['-f', 'lavfi', '-i', 'color=c=gray:s=3600x3600,noise=alls=100:allf=t', '-frames:v', '1', '-q:v', '1', out]);
+  return out;
+}
 async function makeSong() {
   const out = join(MEDIA_DIR, 'my-road-trip-song.wav');
   await ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=330:duration=8', '-ac', '1', '-ar', '22050', out]);
@@ -244,6 +256,38 @@ try {
     // The uploaded clip must actually play from Cloud Storage in the feed.
     await b.goto(BASE + '/');
     await expectPlayable(b, '[data-testid^="video-"] video', 'feed post');
+  });
+
+  await step('Android uploads: files without a MIME type, HEVC clips and big camera photos', async () => {
+    const { readFileSync: rf, statSync: st } = await import('node:fs');
+    const pick = async (file) => {
+      await b.goto(BASE + '/capture');
+      const [chooser] = await Promise.all([b.waitForEvent('filechooser'), tid(b, 'capture-upload').filter({ visible: true }).first().click()]);
+      await chooser.setFiles(file);
+    };
+    // 45 s HEVC clip with no MIME type → rejected by its real length (read from the MP4 header)
+    await pick({ name: 'VID_20261114_long.mp4', mimeType: '', buffer: rf(await makeHevc(45)) });
+    await text(b, /0:45 long\. Videos can be up to 30 seconds/);
+    // 6 s HEVC clip with no MIME type → accepted and uploaded
+    await pick({ name: 'VID_20261114_101500.mp4', mimeType: '', buffer: rf(await makeHevc(6)) });
+    await text(b, 'Video ready · 0:06');
+    await tid(b, 'capture-caption').filter({ visible: true }).first().fill('Android clip 📱');
+    await tid(b, 'capture-save').filter({ visible: true }).first().click();
+    await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
+    // photo from a gallery app that sends no MIME type and no extension
+    await pick({ name: 'Screenshot_20261114', mimeType: '', buffer: png() });
+    await tid(b, 'capture-caption').filter({ visible: true }).first().fill('Android photo 📸');
+    await tid(b, 'capture-save').filter({ visible: true }).first().click();
+    await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
+    // a 13 MB camera photo as profile picture (limit 5 MB) → shrunk before upload
+    const big = await makeBigPhoto();
+    if (st(big).size < 6 * 1024 * 1024) throw new Error('test photo should be > 6 MB');
+    await b.goto(BASE + '/settings');
+    const [chooser] = await Promise.all([b.waitForEvent('filechooser'), tid(b, 'change-avatar').filter({ visible: true }).first().click()]);
+    await chooser.setFiles(big);
+    await b.waitForFunction(() => [...document.images].some((i) => i.src.includes('avatars') && i.complete && i.naturalWidth > 0), null, { timeout: 60_000 });
+    const w = await b.evaluate(() => [...document.images].find((i) => i.src.includes('avatars')).naturalWidth);
+    if (w > 1024) throw new Error(`avatar not downscaled (${w}px)`);
   });
 
   await step('AC-002/003 Start journey with location permission; GPS points recorded and city detected', async () => {

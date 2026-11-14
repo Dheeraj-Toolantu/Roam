@@ -119,7 +119,7 @@ export default function SettingsScreen() {
       <Card>
         <Row style={{ marginBottom: space.lg }}>
           <Avatar name={displayName} uri={me.photoURL} size={64} ring />
-          <Button title={uploading ? 'Uploading…' : 'Change photo'} small variant="secondary" icon="camera" loading={uploading} onPress={changeAvatar} />
+          <Button title={uploading ? 'Uploading…' : 'Change photo'} small variant="secondary" icon="camera" loading={uploading} onPress={changeAvatar} testID="change-avatar" />
         </Row>
         <Field label="Display name" value={displayName} onChangeText={setDisplayName} testID="settings-name" maxLength={60} />
         <Field label="Username" value={`@${me.username}`} editable={false} />
