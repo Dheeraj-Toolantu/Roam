@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { db } from '../lib/firebase';
 import { shouldPublish, type LivePoint } from '../logic/live';
 import type { Group, UserProfile } from '../types';
+import { backgroundLocation } from './backgroundLocation';
 import { liveLocation } from './location';
 import { notifyMany } from './notifications';
 
@@ -58,7 +59,7 @@ class LiveShare {
     const saved = await AsyncStorage.getItem(storeKey(me.uid)).catch(() => null);
     const ids: string[] = saved ? JSON.parse(saved) : [];
     ids.forEach((g) => this.groups.add(g));
-    if (this.groups.size) this.start();
+    if (this.groups.size) await this.start();
     this.emit();
   }
 
@@ -69,7 +70,7 @@ class LiveShare {
     this.groups.add(group.id);
     await this.persist();
     await this.write(group.id, fix);
-    this.start();
+    await this.start();
     this.emit();
     await notifyMany(group.memberIds, { uid: me.uid, displayName: me.displayName }, 'groupActivity', `${me.displayName} is sharing live location in ${group.name}`, `/trip/${group.id}`);
   }
@@ -79,6 +80,7 @@ class LiveShare {
     await this.persist();
     if (this.me) await deleteDoc(doc(db, 'groups', groupId, 'live', this.me.uid)).catch(() => {});
     if (!this.groups.size) this.stop();
+    else await this.start(); // update the set of trips the background task publishes to
     this.emit();
   }
 
@@ -93,7 +95,18 @@ class LiveShare {
     this.emit();
   }
 
-  private start() {
+  /**
+   * Keep publishing while any trip is shared. On iOS/Android with background
+   * permission the OS background task publishes (works with the app closed);
+   * otherwise a foreground watcher publishes while the app is open.
+   */
+  private async start() {
+    const me = this.me;
+    if (!me) return;
+    if (await backgroundLocation.setShareGroups(me.uid, me.displayName, [...this.groups]).catch(() => false)) {
+      this.stopForeground();
+      return;
+    }
     if (this.release) return;
     this.release = liveLocation.acquireLive();
     this.unsub = liveLocation.subscribe((s) => {
@@ -104,6 +117,11 @@ class LiveShare {
   }
 
   private stop() {
+    this.stopForeground();
+    if (this.me) void backgroundLocation.setShareGroups(this.me.uid, this.me.displayName, []).catch(() => {});
+  }
+
+  private stopForeground() {
     this.unsub?.();
     this.unsub = null;
     this.release?.();

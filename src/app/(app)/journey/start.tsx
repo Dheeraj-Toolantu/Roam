@@ -4,9 +4,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { BackgroundLocationCard } from '@/components/BackgroundLocationCard';
 import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Row, Screen } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { subscribeMyGroups } from '@/services/crew';
+import { backgroundLocation } from '@/services/backgroundLocation';
 import { getJourney, startJourney } from '@/services/journeys';
 import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
@@ -45,6 +47,10 @@ export default function StartJourney() {
     try {
       // Ask for location permission before tracking begins (BR-002).
       const granted = await tracker.requestPermission();
+      // If the user opted into background recording, ask for "Allow all the time" now (explained on this screen).
+      if (granted && (await backgroundLocation.isSupported()) && (await backgroundLocation.isPreferred()) && (await backgroundLocation.permission()) === 'undetermined') {
+        await backgroundLocation.requestPermission();
+      }
       const g = groups.find((x) => x.id === groupId);
       const id = await startJourney(me, {
         title: title || (kind === 'group' && g ? g.name : 'My Journey'),
@@ -118,6 +124,7 @@ export default function StartJourney() {
           <Chip key={v.id} label={v.label} icon={v.icon} active={visibility === v.id} onPress={() => setVisibility(v.id)} />
         ))}
       </Row>
+      <BackgroundLocationCard />
       <InfoText text="Your precise GPS route is always private. Only cities and the moments you choose to share are visible to others." icon="shield-checkmark" />
       <ErrorText text={err} />
       <Button testID="start-journey" title="Start Journey" iconRight="arrow-forward" onPress={go} loading={busy} style={{ marginTop: 12 }} />

@@ -98,8 +98,12 @@ export function Header({
   );
 }
 
-export function Row({ children, style, gap = space.sm }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; gap?: number }) {
-  return <View style={[{ flexDirection: 'row', alignItems: 'center', gap }, style]}>{children}</View>;
+export function Row({ children, style, gap = space.sm, testID }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; gap?: number; testID?: string }) {
+  return (
+    <View testID={testID} style={[{ flexDirection: 'row', alignItems: 'center', gap }, style]}>
+      {children}
+    </View>
+  );
 }
 
 export function Spacer({ h = space.lg }: { h?: number }) {

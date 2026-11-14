@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { IconName } from '@/components/ui';
 import { useMe } from '@/lib/session';
+import { backgroundLocation } from '@/services/backgroundLocation';
 import { liveLocation } from '@/services/location';
 import { liveShare } from '@/services/liveShare';
 import { colors, gradients } from '@/theme';
@@ -72,6 +73,8 @@ export default function TabsLayout() {
   // crew live-location sharing the user had turned on before the app was closed.
   useEffect(() => {
     void liveLocation.detect();
+    // Restart OS background updates if a journey / crew sharing was active (e.g. after a reboot or update).
+    void backgroundLocation.sync();
   }, []);
   useEffect(() => {
     void liveShare.init({ uid: me.uid, displayName: me.displayName });

@@ -14,7 +14,8 @@
         "NSLocationWhenInUseUsageDescription": "ROAM records your journey route, cities and places while a journey is active. Tracking is always visible and can be paused.",
         "NSCameraUsageDescription": "ROAM uses the camera to capture travel photos and videos for your journey.",
         "NSPhotoLibraryUsageDescription": "ROAM lets you add existing photos and videos to your journeys.",
-        "NSMicrophoneUsageDescription": "ROAM records audio with your travel videos."
+        "NSMicrophoneUsageDescription": "ROAM records audio with your travel videos.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow ROAM to keep recording your journey and sharing your live location with your crew when the app is in the background. You can pause or turn this off any time."
       }
     },
     "android": {
@@ -28,7 +29,10 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "CAMERA",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -49,7 +53,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "ROAM records your journey route, cities and places while a journey is active."
+          "locationWhenInUsePermission": "ROAM records your journey route, cities and places while a journey is active.",
+          "locationAlwaysAndWhenInUsePermission": "Allow ROAM to keep recording your journey and sharing your live location with your crew when the app is in the background. You can pause or turn this off any time.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [

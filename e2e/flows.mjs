@@ -165,10 +165,12 @@ try {
   await step('AC-002/003 Start journey with location permission; GPS points recorded and city detected', async () => {
     await tid(a, 'qa-start').click();
     await a.waitForFunction(() => /Starting from .*Goa/.test(document.querySelector('[data-testid="start-location"]')?.textContent ?? ''), null, { timeout: 15_000 });
+    await tid(a, 'bg-unsupported').filter({ visible: true }).first().waitFor(); // web: explains background needs the mobile app
     await tid(a, 'journey-title').fill('Goa Trip 2026');
     await shot(a, '05-start-journey');
     await tid(a, 'start-journey').click();
     await text(a, 'Recording');
+    await text(a, 'Recording while ROAM is open.');
     await a.locator('[data-testid="journey-map"] [data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
     // Simulate a ride south along the coast from Baga: ~150 m per fix every ~0.7 s.
     // (Bigger jumps would be rejected by the tracker's implausible-speed filter.)

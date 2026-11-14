@@ -19,6 +19,7 @@ import {
 import { CITIES } from '../data/cities';
 import { db } from '../lib/firebase';
 import { endJourney, pauseJourney, resumeJourney } from '../logic/journey';
+import { locationBatchUpdate } from '../logic/journeyUpdate';
 import type { Activity, ActivityType, Journey, UserProfile, Visibility } from '../types';
 import { withId } from './util';
 
@@ -141,25 +142,7 @@ export async function saveLocationBatch(
   if (!points.length) return;
   const b = writeBatch(db);
   for (const p of points) b.set(doc(collection(db, 'journeys', j.id, 'locations')), { ...p, excluded: false });
-  const newCityIds = Array.from(new Set(points.map((p) => p.cityId).filter((x): x is string => !!x))).filter(
-    (c) => !j.cityIds.includes(c),
-  );
-  const cityIds = [...j.cityIds, ...newCityIds];
-  const cities = cityIds.map((id) => CITIES.find((c) => c.id === id)).filter(Boolean);
-  const last = points[points.length - 1];
-  // Keep a downsampled route on the journey doc (max ~300 points) for fast map rendering.
-  let route = [...(j.route ?? []), ...points.map((p) => ({ lat: p.lat, lng: p.lng }))];
-  if (route.length > 300) route = route.filter((_, i) => i % 2 === 0 || i === route.length - 1);
-  b.update(doc(db, 'journeys', j.id), {
-    distanceKm: increment(addedKm),
-    lastPoint: { lat: last.lat, lng: last.lng, timestamp: last.timestamp },
-    cityIds,
-    cities: cities.map((c) => c!.name),
-    countries: Array.from(new Set(cities.map((c) => c!.country))),
-    continents: Array.from(new Set(cities.map((c) => c!.continent))),
-    anchorCityId: j.anchorCityId ?? cityIds[0] ?? null,
-    route,
-  });
+  b.update(doc(db, 'journeys', j.id), { distanceKm: increment(addedKm), ...locationBatchUpdate(j, points) });
   await b.commit();
 }
 

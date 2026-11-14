@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { confirmAsync, toast } from '@/components/PostCard';
+import { BackgroundLocationCard } from '@/components/BackgroundLocationCard';
 import { Avatar, Button, Card, Chip, ErrorText, Field, Header, InfoText, Row, Screen, SectionTitle, Segmented, Toggle } from '@/components/ui';
 import { signOut, useMe, useSession } from '@/lib/session';
 import { clearLocationHistory, setPresence } from '@/services/journeys';
@@ -155,6 +156,9 @@ export default function SettingsScreen() {
         </View>
         <InfoText icon="shield-checkmark" text="Your precise location is never public. GPS history is visible only to you, and joining a crew never shares your live location." />
       </Card>
+
+      <SectionTitle title="Background location" />
+      <BackgroundLocationCard />
 
       <SectionTitle title="Notifications" />
       <Card style={{ paddingVertical: space.sm }}>

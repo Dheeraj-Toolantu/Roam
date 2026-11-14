@@ -3,19 +3,25 @@ import * as Location from 'expo-location';
 import { CITY_BY_ID } from '../data/cities';
 import { detectedCityDeparture, haversineKm, nearestCity, shouldRecord, type GeoPoint } from '../logic/journey';
 import type { Journey } from '../types';
+import { backgroundLocation, onBackgroundFixes } from './backgroundLocation';
 import { saveLocationBatch, setPresence, type LocationPoint } from './journeys';
 import { liveLocation } from './location';
 
 /**
- * Foreground journey tracker.
+ * Journey tracker.
+ *
+ * Two modes:
+ *  - 'background' (iOS/Android with "Allow all the time"): the OS delivers fixes to
+ *    the background task (services/backgroundLocation.ts), which stores them even when
+ *    the app is in the background or closed. The tracker only mirrors fixes for the UI.
+ *  - 'foreground' (web, or background permission not granted): a watchPosition
+ *    subscription records while the app is open (logic below).
  *
  * - Battery aware: balanced accuracy + OS distance filter (adaptive sampling, BRD §16.6)
  * - Jitter filtering via shouldRecord()
  * - Points are buffered and written in batches; Firestore queues writes while offline
  * - Detects city departure and suggests ending the journey (user confirms)
  *
- * Background tracking (app closed) requires expo-task-manager + a development
- * build with the background-location entitlement; see README.
  */
 
 type Listener = (s: TrackerState) => void;
@@ -29,6 +35,8 @@ export interface TrackerState {
   pendingKm: number;
   suggestEnd: boolean;
   error: string | null;
+  /** How the journey is being recorded. */
+  mode: 'background' | 'foreground' | null;
 }
 
 const FLUSH_EVERY_POINTS = 5;
@@ -37,7 +45,7 @@ const FLUSH_EVERY_MS = 30_000;
 class JourneyTracker {
   private state: TrackerState = {
     journeyId: null, permission: 'unknown', running: false, lastFix: null,
-    currentCityId: null, pendingKm: 0, suggestEnd: false, error: null,
+    currentCityId: null, pendingKm: 0, suggestEnd: false, error: null, mode: null,
   };
   private listeners = new Set<Listener>();
   private sub: Location.LocationSubscription | null = null;
@@ -47,6 +55,7 @@ class JourneyTracker {
   private journey: Journey | null = null;
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private presence: { uid: string; name: string; enabled: boolean } | null = null;
+  private bgUnsub: (() => void) | null = null;
 
   get snapshot() {
     return this.state;
@@ -92,6 +101,12 @@ class JourneyTracker {
       this.set({ error: 'Location permission denied. ROAM can still record photos and activities.' });
       return;
     }
+    // Prefer OS background updates (keeps recording when the app is backgrounded/closed).
+    if (await backgroundLocation.setJourney(j.ownerId, j.ownerName, j.id).catch(() => false)) {
+      this.bgUnsub = onBackgroundFixes((fixes) => fixes.forEach((f) => this.observe(f)));
+      this.set({ running: true, mode: 'background' });
+      return;
+    }
     try {
       this.sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, distanceInterval: 25, timeInterval: 15_000 },
@@ -103,7 +118,7 @@ class JourneyTracker {
         }),
       );
       this.flushTimer = setInterval(() => void this.flush(), FLUSH_EVERY_MS);
-      this.set({ running: true });
+      this.set({ running: true, mode: 'foreground' });
     } catch (e) {
       this.set({ error: `Could not start location tracking: ${(e as Error).message}` });
     }
@@ -131,6 +146,24 @@ class JourneyTracker {
     if (this.buffer.length >= FLUSH_EVERY_POINTS || cityChanged) void this.flush();
   }
 
+  /**
+   * Background mode: mirror a fix for the UI only (stored by the background task).
+   * Updates the live dot, current city, Live World presence and the "left the city" prompt.
+   */
+  observe(fix: GeoPoint) {
+    liveLocation.ingest({ lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy ?? null, timestamp: fix.timestamp });
+    if (!this.journey || this.journey.status !== 'active') return;
+    if (this.state.lastFix && fix.timestamp <= this.state.lastFix.timestamp) return;
+    const city = nearestCity(fix);
+    this.recent = [...this.recent.slice(-9), { lat: fix.lat, lng: fix.lng }];
+    const anchor = this.journey.anchorCityId ? CITY_BY_ID[this.journey.anchorCityId] : null;
+    const cityChanged = (city?.id ?? null) !== this.state.currentCityId;
+    this.set({ lastFix: fix, currentCityId: city?.id ?? this.state.currentCityId, suggestEnd: detectedCityDeparture(anchor ?? null, this.recent) });
+    if (cityChanged && this.presence) {
+      void setPresence(this.presence.uid, this.presence.name, city?.id ?? null, this.presence.enabled).catch(() => {});
+    }
+  }
+
   async flush() {
     if (!this.journey || !this.buffer.length) return;
     const points = this.buffer;
@@ -154,13 +187,20 @@ class JourneyTracker {
   }
 
   async stop() {
+    if (this.state.mode === 'background' && this.journey) {
+      // Upload anything queued, then stop recording this journey in the background.
+      await backgroundLocation.flush();
+      await backgroundLocation.setJourney(this.journey.ownerId, this.journey.ownerName, null).catch(() => {});
+    }
+    this.bgUnsub?.();
+    this.bgUnsub = null;
     this.sub?.remove();
     this.sub = null;
     if (this.flushTimer) clearInterval(this.flushTimer);
     this.flushTimer = null;
     await this.flush();
     if (this.presence) await setPresence(this.presence.uid, this.presence.name, null, false).catch(() => {});
-    this.set({ running: false });
+    this.set({ running: false, mode: null });
   }
 
   async getCurrentPosition(): Promise<GeoPoint | null> {

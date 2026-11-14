@@ -144,6 +144,19 @@ export default function JourneyScreen() {
       )}
 
       {mine && live && t.error && <InfoText text={t.error} icon="warning" />}
+      {mine && j.status === 'active' && t.journeyId === j.id && t.mode && (
+        <Row gap={6} style={{ marginTop: 8 }} testID="recording-mode">
+          <Ionicons name={t.mode === 'background' ? 'shield-checkmark' : 'phone-portrait-outline'} size={14} color={t.mode === 'background' ? colors.green : colors.yellow} />
+          <Text style={type.small}>
+            {t.mode === 'background' ? 'Recording in the background — you can lock your phone or switch apps.' : 'Recording while ROAM is open.'}
+          </Text>
+          {t.mode === 'foreground' && (
+            <Text style={{ color: colors.cyan, fontWeight: '700', fontSize: 13 }} onPress={() => router.push('/settings')}>
+              Enable background
+            </Text>
+          )}
+        </Row>
+      )}
       {mine && live && t.suggestEnd && (
         <Card style={{ marginTop: 12, borderColor: colors.yellow }}>
           <Text style={type.h3}>Looks like you&apos;ve left {anchor?.name ?? 'the city'}</Text>

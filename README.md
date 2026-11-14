@@ -72,11 +72,22 @@ How location works:
 - **Live updates.** Map screens and crew sharing use a shared, reference-counted live watcher (`src/services/location.ts`); journey tracking feeds the same store.
 - **Crew sharing** is off by default and turned on per trip (trip → Map tab, or trip settings). Updates go to `groups/{id}/live/{uid}`, throttled to at most one every 20 s and only after moving 25 m or more, with a 2-minute heartbeat (`src/logic/live.ts`). The entry is deleted when you turn sharing off, leave the trip or sign out. Only members can read it (see `firestore.rules`).
 
+## Background location
+
+On iOS and Android, journeys and crew live sharing keep recording while ROAM is in the background or closed (expo-location background updates + expo-task-manager):
+
+- **Opt in, then explicit permission.** "Keep recording in the background" is on Start Journey and in Settings, on by default. "Allow all the time" is requested only after that explanation. If declined, ROAM records while open and says so on the journey screen.
+- **Tracking is always visible.** Android shows a persistent "ROAM is recording your journey" notification (foreground service); iOS shows the blue location indicator. Updates stop automatically when the journey is paused or ended, when sharing is turned off, and on sign-out.
+- **Headless processing.** The task is registered in `index.ts` before the UI loads, so Android can deliver fixes after the app is closed. `src/services/backgroundProcessor.ts` restores the Firebase session, filters jitter and impossible jumps, writes the points to the journey, publishes to crews (throttled), and queues points for retry while offline. Re-delivered batches are never double-counted.
+- **Battery.** Balanced accuracy, 25 m distance filter, and deferred (batched) delivery every 30–60 s. Crew-only sharing uses low accuracy.
+- **Builds.** This needs a development or production build (`npx eas-cli@latest build`), not Expo Go. In the browser, ROAM records while the tab is open.
+- **Store review.** Google Play requires a background-location declaration (explain journey recording) and Apple requires the "Always" usage description, which is already in `app.json`.
+
 ## Tests
 
 ```bash
-npm test                 # 36 unit tests: split maths (incl. BRD §12.4 example), journey maths, achievements, planner
-npm run test:emulator    # 30 security-rule tests + 4 Cloud Functions integration tests on the emulators
+npm test                 # 48 unit tests: split maths (incl. BRD §12.4 example), journey maths, achievements, planner
+npm run test:emulator    # 30 security-rule tests, 4 Cloud Functions + 3 background-location integration tests on the emulators
 npm run test:e2e         # builds the web app and drives 3 users through 22 end-to-end flows in a phone viewport
 npm run typecheck && npm run lint
 ```
