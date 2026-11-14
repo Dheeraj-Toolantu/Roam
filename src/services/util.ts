@@ -63,6 +63,13 @@ export function errorMessage(e: unknown): string {
     'auth/network-request-failed': 'Network error. Check your connection.',
     'auth/popup-closed-by-user': 'Sign-in was cancelled.',
     'permission-denied': 'You do not have permission to do that.',
+    'storage/unauthorized': 'You do not have permission to upload this file.',
+    'storage/canceled': 'Upload cancelled.',
+    'storage/quota-exceeded': 'Storage is full right now. Please try again later.',
+    'storage/retry-limit-exceeded': 'Upload timed out. Check your connection and try again.',
+    'storage/unknown': 'Photo & video uploads are not available yet. You can still post text moments.',
+    'storage/bucket-not-found': 'Photo & video uploads are not available yet. You can still post text moments.',
+    'storage/project-not-found': 'Photo & video uploads are not available yet. You can still post text moments.',
     unavailable: 'You appear to be offline. Changes will sync when you reconnect.',
   };
   if (map[code]) return map[code];

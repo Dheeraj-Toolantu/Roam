@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Globe } from '@/components/maps';
 import { toast } from '@/components/PostCard';
+import { Appear, Confetti, Pop, tap } from '@/components/motion';
 import { Avatar, Button, Card, Empty, ErrorText, Header, ProgressBar, Row, Screen, SectionTitle, Stat } from '@/components/ui';
 import { CITIES } from '@/data/cities';
 import { computeAchievements, passportStats, type Achievement } from '@/logic/achievements';
@@ -43,6 +44,7 @@ export default function PassportScreen() {
   const countryCodes = Object.fromEntries(CITIES.map((c) => [c.country, c.countryCode]));
   const unlocked = achievements.filter((a) => a.unlocked).length;
 
+  const [celebrate, setCelebrate] = useState(0);
   const share = async (a: Achievement) => {
     setSharing(a.id);
     setError(null);
@@ -52,6 +54,8 @@ export default function PassportScreen() {
         visibility: me.defaultPostVisibility ?? 'followers',
         kind: 'achievement',
       });
+      setCelebrate((n) => n + 1);
+      tap('success');
       toast(`Shared “${a.title}” to your profile.`);
     } catch (e) {
       setError(errorMessage(e));
@@ -110,12 +114,15 @@ export default function PassportScreen() {
 
       <SectionTitle title={`Achievements · ${unlocked}/${achievements.length}`} />
       <ErrorText text={error} />
-      {achievements.map((a) => (
-        <Card key={a.id} style={[{ marginBottom: space.sm }, !a.unlocked && { opacity: 0.6 }]} testID={`passport-achievement-${a.id}`}>
+      {achievements.map((a, i) => (
+        <Appear key={a.id} index={i}>
+        <Card style={[{ marginBottom: space.sm }, !a.unlocked && { opacity: 0.6 }]} testID={`passport-achievement-${a.id}`}>
           <Row style={{ gap: space.md }}>
-            <LinearGradient colors={a.unlocked ? a.colors : ['#334155', '#1E293B']} style={styles.badge}>
-              <Ionicons name={(a.unlocked ? a.icon : 'lock-closed') as never} size={22} color="#fff" />
-            </LinearGradient>
+            <Pop delay={150 + i * 70}>
+              <LinearGradient colors={a.unlocked ? a.colors : ['#334155', '#1E293B']} style={[styles.badge, a.unlocked && { shadowColor: a.colors[0], shadowOpacity: 0.7, shadowRadius: 14, elevation: 6 }]}>
+                <Ionicons name={(a.unlocked ? a.icon : 'lock-closed') as never} size={22} color="#fff" />
+              </LinearGradient>
+            </Pop>
             <View style={{ flex: 1 }}>
               <Text style={type.h3}>{a.title}</Text>
               <Text style={type.tiny}>{a.description}</Text>
@@ -129,7 +136,9 @@ export default function PassportScreen() {
             )}
           </Row>
         </Card>
+        </Appear>
       ))}
+      <Confetti fire={celebrate} />
     </Screen>
   );
 }

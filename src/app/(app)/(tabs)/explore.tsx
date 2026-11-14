@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Globe } from '@/components/maps';
 import { PostCard } from '@/components/PostCard';
+import { Appear, IconBadge, PressScale, type IconGradient } from '@/components/motion';
 import {
   Avatar,
   Button,
@@ -191,8 +192,10 @@ export default function ExploreScreen() {
 
           <SectionTitle title="Trending Destinations 🔥" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.md }}>
-            {trending.slice(0, 10).map(({ c }) => (
-              <CityCard key={c.id} city={c} live={liveCounts[c.id]} />
+            {trending.slice(0, 10).map(({ c }, i) => (
+              <Appear key={c.id} index={i}>
+                <CityCard city={c} live={liveCounts[c.id]} />
+              </Appear>
             ))}
           </ScrollView>
 
@@ -315,10 +318,10 @@ export default function ExploreScreen() {
 
 function CategoryTile({ icon, label, active, onPress }: { icon: IconName; label: string; active?: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.tile, active && { borderColor: colors.cyan, backgroundColor: colors.cardAlt }]} accessibilityLabel={label}>
-      <Ionicons name={icon} size={22} color={active ? colors.cyan : '#fff'} />
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{label}</Text>
-    </Pressable>
+    <PressScale onPress={onPress} style={[styles.tile, active && { borderColor: colors.cyan, backgroundColor: colors.cardAlt }]} accessibilityLabel={label} scaleTo={0.92}>
+      <IconBadge icon={icon} gradient={TILE_GRADIENT[icon as string] ?? 'violet'} size={38} />
+      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{label}</Text>
+    </PressScale>
   );
 }
 
@@ -353,6 +356,8 @@ function TravellerRow({ u, following, onToggle, isMe }: { u: UserProfile; follow
     </Pressable>
   );
 }
+
+const TILE_GRADIENT: Record<string, IconGradient> = {'business': 'ocean', 'people': 'sunset', 'map': 'mint', 'images': 'candy', 'book': 'violet', 'create': 'sky', 'notifications': 'gold', 'shield': 'fire'};
 
 const styles = StyleSheet.create({
   plannerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.cardBorder },

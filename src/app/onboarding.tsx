@@ -7,9 +7,21 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Globe } from '@/components/maps';
+import { Appear, IconBadge, Pop, PressScale } from '@/components/motion';
 import { Button, Logo, Row } from '@/components/ui';
 import { ONBOARDING_KEY } from '@/lib/constants';
 import { colors, gradients, type } from '@/theme';
+
+const STICKERS = [
+  ['🌴', '📸', '✈️'],
+  ['🫶', '🎉', '🏝️'],
+  ['🔒', '✨', '🗺️'],
+];
+const STICKER_POS = [
+  { top: '12%', left: '8%' },
+  { top: '6%', right: '10%' },
+  { bottom: '12%', right: '14%' },
+] as const;
 
 const SLIDES = [
   {
@@ -45,27 +57,39 @@ export default function Onboarding() {
             <Text style={{ color: colors.textMuted, fontWeight: '600' }}>Skip</Text>
           </Pressable>
         </Row>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          {s.art === 'globe' ? (
-            <Globe size={220} markers={[{ lat: 48.85, lng: 2.35, color: colors.pink }, { lat: 15.49, lng: 73.82, color: colors.cyan }, { lat: 36.39, lng: 25.46, color: colors.yellow }]} />
-          ) : (
-            <LinearGradient colors={s.art === 'crew' ? gradients.sunset : gradients.brand} style={{ width: 200, height: 200, borderRadius: 100, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={s.art === 'crew' ? 'people' : 'shield-checkmark'} size={96} color="#fff" />
-            </LinearGradient>
-          )}
+        <View key={`art-${i}`} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Pop>
+            {s.art === 'globe' ? (
+              <Globe size={220} markers={[{ lat: 48.85, lng: 2.35, color: colors.pink }, { lat: 15.49, lng: 73.82, color: colors.cyan }, { lat: 36.39, lng: 25.46, color: colors.yellow }]} />
+            ) : (
+              <IconBadge icon={s.art === 'crew' ? 'people' : 'shield-checkmark'} gradient={s.art === 'crew' ? 'sunset' : 'ocean'} size={190} rounded="circle" float />
+            )}
+          </Pop>
+          {/* floating stickers */}
+          {STICKERS[i].map((e, k) => (
+            <Appear key={e} delay={250 + k * 120} style={[{ position: 'absolute' }, STICKER_POS[k]]}>
+              <Text style={{ fontSize: 30 }}>{e}</Text>
+            </Appear>
+          ))}
         </View>
-        <Text style={[type.h1, { textAlign: 'center', marginBottom: 20 }]}>{s.title}</Text>
+        <Appear key={`title-${i}`}>
+          <Text style={[type.h1, { textAlign: 'center', marginBottom: 20 }]}>{s.title}</Text>
+        </Appear>
         <View style={{ gap: 12, marginBottom: 28, alignSelf: 'center' }}>
-          {s.points.map((p) => (
-            <Row key={p} gap={12}>
-              <Ionicons name="checkmark-circle" size={22} color={colors.green} />
-              <Text style={type.body}>{p}</Text>
-            </Row>
+          {s.points.map((p, k) => (
+            <Appear key={`${i}-${p}`} index={k} delay={120}>
+              <Row gap={12}>
+                <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                <Text style={type.body}>{p}</Text>
+              </Row>
+            </Appear>
           ))}
         </View>
         <Row style={{ justifyContent: 'center', marginBottom: 18 }} gap={6}>
           {SLIDES.map((_, k) => (
-            <View key={k} style={{ width: k === i ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? colors.cyan : colors.cardAlt }} />
+            <PressScale key={k} onPress={() => setI(k)} accessibilityLabel={`Slide ${k + 1}`}>
+              <View style={{ width: k === i ? 26 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? colors.cyan : colors.cardAlt }} />
+            </PressScale>
           ))}
         </Row>
         <Button

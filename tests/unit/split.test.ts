@@ -172,3 +172,16 @@ describe('money helpers', () => {
     expect(budgetStatus(1000, 1200)).toMatchObject({ level: 'over', remaining: -200 });
   });
 });
+
+import { showVerifying } from '../../src/logic/split';
+
+describe('showVerifying', () => {
+  it('shows only while a server check is plausibly pending', () => {
+    const now = 1_000_000;
+    expect(showVerifying('pending', null, now)).toBe(true); // just written
+    expect(showVerifying('pending', now - 30_000, now)).toBe(true);
+    expect(showVerifying('pending', now - 5 * 60_000, now)).toBe(false); // functions not running → stop nagging
+    expect(showVerifying('ok', now, now)).toBe(false);
+    expect(showVerifying('invalid', now, now)).toBe(false);
+  });
+});

@@ -8,9 +8,9 @@ import { Avatar, Button, Card, Empty, ErrorText, Header, Loading, Pill, Row, Scr
 import { memberName, useTripMoney } from '@/hooks/useTrip';
 import { TripUnavailable } from '@/components/TripUnavailable';
 import { useMe } from '@/lib/session';
-import { EXPENSE_CATEGORIES, formatMoney, SPLIT_METHODS } from '@/logic/split';
+import { EXPENSE_CATEGORIES, formatMoney, showVerifying, SPLIT_METHODS } from '@/logic/split';
 import { deleteExpense } from '@/services/split';
-import { errorMessage, timeAgo } from '@/services/util';
+import { errorMessage, timeAgo, tsToMs } from '@/services/util';
 import { colors, radius, type } from '@/theme';
 
 export default function ExpenseDetail() {
@@ -36,7 +36,7 @@ export default function ExpenseDetail() {
           <Pill text={cat?.label ?? e.category} color={colors.cyan} />
           <Pill text={SPLIT_METHODS.find((m) => m.id === e.splitMethod)?.label ?? e.splitMethod} color={colors.violet} />
           {e.status === 'deleted' && <Pill text="Deleted" color={colors.red} />}
-          {e.validation === 'pending' && <Pill text="Verifying" color={colors.yellow} />}
+          {showVerifying(e.validation, e.createdAt ? tsToMs(e.createdAt) : null) && <Pill text="Verifying" color={colors.yellow} />}
           {e.validation === 'ok' && <Pill text="Verified" color={colors.green} icon="shield-checkmark" />}
           {e.validation === 'invalid' && <Pill text="Rejected by server" color={colors.red} icon="alert-circle" />}
         </Row>

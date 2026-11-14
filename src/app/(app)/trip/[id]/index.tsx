@@ -7,24 +7,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { CrewLiveMap } from '@/components/CrewLiveMap';
 import { confirmAsync } from '@/components/PostCard';
-import {
-  Avatar,
-  AvatarStack,
-  Button,
-  Card,
-  Chip,
-  Empty,
-  ErrorText,
-  Field,
-  IconButton,
-  InfoText,
-  Loading,
-  Pill,
-  ProgressBar,
-  Row,
-  Screen,
-  Segmented,
-  type IconName, goBackOr } from '@/components/ui';
+import { IconBadge, type IconGradient } from '@/components/motion';
+import { Avatar, AvatarStack, Button, Card, Chip, Empty, ErrorText, Field, IconButton, Loading, Pill, ProgressBar, Row, Screen, Segmented, type IconName, goBackOr } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { memberName, tripDates, useTripMoney } from '@/hooks/useTrip';
 import { useMe } from '@/lib/session';
@@ -73,13 +57,13 @@ export default function TripDashboard() {
   const media = items.filter((i) => i.mediaUrl);
   const isAdmin = group.adminIds.includes(me.uid);
 
-  const tiles: { icon: IconName; label: string; onPress: () => void; testID: string }[] = [
-    { icon: 'time-outline', label: 'Trip Timeline', onPress: () => setTab('timeline'), testID: 'tile-timeline' },
-    { icon: 'images-outline', label: 'Group Album', onPress: () => setTab('moments'), testID: 'tile-album' },
-    { icon: 'wallet-outline', label: 'ROAM Split', onPress: () => router.push(`/trip/${id}/split`), testID: 'tile-split' },
-    { icon: 'people-outline', label: 'Members', onPress: () => setTab('members'), testID: 'tile-members' },
-    { icon: 'film-outline', label: 'Group Video', onPress: () => router.push(`/magic?groupId=${id}`), testID: 'tile-video' },
-    { icon: 'person-add-outline', label: 'Invite', onPress: () => router.push(`/trip/${id}/invite`), testID: 'tile-invite' },
+  const tiles: { icon: IconName; label: string; onPress: () => void; testID: string; gradient: IconGradient }[] = [
+    { icon: 'time', label: 'Trip Timeline', onPress: () => setTab('timeline'), testID: 'tile-timeline', gradient: 'ocean' },
+    { icon: 'images', label: 'Group Album', onPress: () => setTab('moments'), testID: 'tile-album', gradient: 'candy' },
+    { icon: 'wallet', label: 'ROAM Split', onPress: () => router.push(`/trip/${id}/split`), testID: 'tile-split', gradient: 'gold' },
+    { icon: 'people', label: 'Members', onPress: () => setTab('members'), testID: 'tile-members', gradient: 'sunset' },
+    { icon: 'film', label: 'Group Video', onPress: () => router.push(`/magic?groupId=${id}`), testID: 'tile-video', gradient: 'violet' },
+    { icon: 'person-add', label: 'Invite', onPress: () => router.push(`/trip/${id}/invite`), testID: 'tile-invite', gradient: 'mint' },
   ];
 
   return (
@@ -108,7 +92,7 @@ export default function TripDashboard() {
         {tiles.map((t) => (
           <Pressable key={t.label} onPress={t.onPress} style={{ width: '31.5%' }} testID={t.testID} accessibilityRole="button" accessibilityLabel={t.label}>
             <Card style={{ alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, gap: 6 }}>
-              <Ionicons name={t.icon} size={22} color={colors.cyan} />
+              <IconBadge icon={t.icon} gradient={t.gradient} size={40} />
               <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t.label}</Text>
             </Card>
           </Pressable>

@@ -2,9 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router/tabs';
 import { useEffect } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PulseRing, tap } from '@/components/motion';
 import type { IconName } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { backgroundLocation } from '@/services/backgroundLocation';
@@ -26,40 +28,77 @@ type BarProps = {
   navigation: { navigate: (name: string) => void; emit: (e: { type: 'tabPress'; target: string; canPreventDefault: true }) => { defaultPrevented: boolean } };
 };
 
+function TabItem({ route, focused, onPress }: { route: { key: string; name: string }; focused: boolean; onPress: () => void }) {
+  const meta = TABS[route.name];
+  const lift = useSharedValue(focused ? 1 : 0);
+  useEffect(() => {
+    lift.value = withSpring(focused ? 1 : 0, { damping: 12, stiffness: 220 });
+  }, [focused, lift]);
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -3 * lift.value }, { scale: 1 + 0.12 * lift.value }] }));
+  const pillStyle = useAnimatedStyle(() => ({ opacity: lift.value, transform: [{ scaleX: 0.6 + 0.4 * lift.value }] }));
+  return (
+    <Pressable
+      onPress={() => {
+        tap();
+        onPress();
+      }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: focused }}
+      accessibilityLabel={meta.label}
+      testID={`tab-${route.name}`}
+      style={styles.item}>
+      <Animated.View style={[styles.pill, pillStyle]}>
+        <LinearGradient colors={['#22D3EE33', '#8B5CF633']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, borderRadius: 14 }} />
+      </Animated.View>
+      <Animated.View style={iconStyle}>
+        <Ionicons name={focused ? meta.iconOn : meta.icon} size={22} color={focused ? colors.cyan : colors.textMuted} />
+      </Animated.View>
+      <Text style={[styles.label, focused && { color: colors.cyan }]}>{meta.label}</Text>
+    </Pressable>
+  );
+}
+
+function CaptureButton({ onPress }: { onPress: () => void }) {
+  const spin = useSharedValue(0);
+  const s = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 90}deg` }] }));
+  return (
+    <Pressable
+      onPress={() => {
+        tap('medium');
+        spin.set(withSequence(withTiming(1, { duration: 220 }), withTiming(0, { duration: 0 })));
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="Capture"
+      testID="tab-capture"
+      style={styles.item}>
+      <PulseRing color={colors.violet} size={52}>
+        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.plus}>
+          <Animated.View style={s}>
+            <Ionicons name="add" size={30} color="#fff" />
+          </Animated.View>
+        </LinearGradient>
+      </PulseRing>
+    </Pressable>
+  );
+}
+
 function TabBar({ state, navigation }: BarProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.bar}>
         {state.routes.map((route, i) => {
-          const meta = TABS[route.name];
-          if (!meta) return null;
+          if (!TABS[route.name]) return null;
           const focused = state.index === i;
           const onPress = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
           };
-          if (route.name === 'capture') {
-            return (
-              <Pressable key={route.key} onPress={onPress} accessibilityRole="button" accessibilityLabel="Capture" testID="tab-capture" style={styles.item}>
-                <LinearGradient colors={gradients.primary} style={styles.plus}>
-                  <Ionicons name="add" size={28} color="#fff" />
-                </LinearGradient>
-              </Pressable>
-            );
-          }
-          return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: focused }}
-              accessibilityLabel={meta.label}
-              testID={`tab-${route.name}`}
-              style={styles.item}>
-              <Ionicons name={focused ? meta.iconOn : meta.icon} size={22} color={focused ? colors.cyan : colors.textMuted} />
-              <Text style={[styles.label, focused && { color: colors.cyan }]}>{meta.label}</Text>
-            </Pressable>
+          return route.name === 'capture' ? (
+            <CaptureButton key={route.key} onPress={onPress} />
+          ) : (
+            <TabItem key={route.key} route={route} focused={focused} onPress={onPress} />
           );
         })}
       </View>
@@ -112,5 +151,6 @@ const styles = StyleSheet.create({
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 48 },
   label: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
-  plus: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginTop: -2 },
+  plus: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', shadowColor: '#8B5CF6', shadowOpacity: 0.6, shadowRadius: 14, elevation: 8 },
+  pill: { position: 'absolute', top: 2, width: 52, height: 34, borderRadius: 14, overflow: 'hidden' },
 });
