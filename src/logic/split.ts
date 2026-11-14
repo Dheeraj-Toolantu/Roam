@@ -312,3 +312,14 @@ export function budgetStatus(budget: number | undefined | null, spent: number, a
     level: pct > 100 ? 'over' : pct >= alertPct ? 'warning' : 'ok',
   };
 }
+
+/**
+ * Whether to show "Verifying" for an expense awaiting server validation.
+ * The app already validates allocations before saving; if the server check hasn't
+ * run within a couple of minutes (e.g. Cloud Functions not deployed), stop showing it.
+ */
+export function showVerifying(validation: string | undefined, createdAtMs: number | null, now = Date.now(), graceMs = 120_000): boolean {
+  if (validation !== 'pending') return false;
+  if (createdAtMs == null) return true; // just written, server timestamp pending
+  return now - createdAtMs < graceMs;
+}

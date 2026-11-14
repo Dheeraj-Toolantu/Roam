@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Animated from 'react-native-reanimated';
 import { Alert, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { hasLiked, isSaved, report, toggleLike, toggleSave } from '../services/social';
 import { timeAgo } from '../services/util';
 import { colors, radius, space, type } from '../theme';
 import type { Post, UserProfile } from '../types';
+import { HeartPop, tap, useBump } from './motion';
 import { Avatar, Pill, Row } from './ui';
 
 const VIS_ICON = { public: 'earth', followers: 'people', crew: 'people-circle', private: 'lock-closed' } as const;
@@ -39,8 +41,30 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
     isSaved(me.uid, post.id).then(setSaved).catch(() => {});
   }, [post.id, post.likesCount, me.uid]);
 
+  const [pop, setPop] = useState(0);
+  const lastTap = useRef(0);
+  const bump = useBump(liked);
+
+  /** Double-tap the photo to like (single tap opens the post). */
+  const onMediaPress = () => {
+    // eslint-disable-next-line react-hooks/purity -- runs in a tap handler, not during render
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
+      lastTap.current = 0;
+      setPop(now);
+      tap('medium');
+      if (!liked) void like();
+      return;
+    }
+    lastTap.current = now;
+    setTimeout(() => {
+      if (lastTap.current === now) router.push(`/post/${post.id}`);
+    }, 300);
+  };
+
   const like = async () => {
     const was = liked;
+    tap();
     setLiked(!was);
     setLikes((n) => n + (was ? -1 : 1));
     try {
@@ -111,8 +135,9 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
         </Text>
       )}
       {!!post.mediaUrl && post.mediaType === 'image' && (
-        <Pressable onPress={() => router.push(`/post/${post.id}`)}>
-          <Image source={{ uri: post.mediaUrl }} style={styles.media} contentFit="cover" />
+        <Pressable onPress={onMediaPress} accessibilityLabel="Photo. Double-tap to like" testID={`media-${post.id}`}>
+          <Image source={{ uri: post.mediaUrl }} style={styles.media} contentFit="cover" transition={250} />
+          <HeartPop show={pop} />
         </Pressable>
       )}
       {!!post.mediaUrl && post.mediaType === 'video' && (
@@ -125,7 +150,9 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
         <Row gap={18}>
           <Pressable onPress={like} accessibilityLabel={liked ? 'Unlike' : 'Like'} testID={`like-${post.id}`}>
             <Row gap={6}>
-              <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? colors.pink : colors.textMuted} />
+              <Animated.View style={bump}>
+                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? colors.pink : colors.textMuted} />
+              </Animated.View>
               <Text style={type.small}>{likes}</Text>
             </Row>
           </Pressable>

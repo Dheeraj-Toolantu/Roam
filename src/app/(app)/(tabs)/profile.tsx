@@ -1,9 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { confirmAsync, PostCard } from '@/components/PostCard';
+import { IconBadge, PressScale, type IconGradient } from '@/components/motion';
 import { Avatar, Button, Card, Empty, IconButton, Loading, Row, Screen, Segmented, Stat, type IconName } from '@/components/ui';
 import { passportStats } from '@/logic/achievements';
 import { signOut, useMe, useSession } from '@/lib/session';
@@ -114,12 +115,14 @@ export default function ProfileTab() {
 
 function Tile({ icon, label, onPress, testID }: { icon: IconName; label: string; onPress: () => void; testID?: string }) {
   return (
-    <Pressable onPress={onPress} style={styles.tile} accessibilityRole="button" accessibilityLabel={label} testID={testID}>
-      <Ionicons name={icon} size={22} color={colors.cyan} />
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
-    </Pressable>
+    <PressScale onPress={onPress} style={styles.tile} accessibilityRole="button" accessibilityLabel={label} testID={testID} scaleTo={0.92}>
+      <IconBadge icon={icon} gradient={TILE_GRADIENT[icon as string] ?? 'violet'} size={38} />
+      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{label}</Text>
+    </PressScale>
   );
 }
+
+const TILE_GRADIENT: Record<string, IconGradient> = {'business': 'ocean', 'people': 'sunset', 'map': 'mint', 'images': 'candy', 'book': 'violet', 'create': 'sky', 'notifications': 'gold', 'shield': 'fire'};
 
 const styles = StyleSheet.create({
   tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder },

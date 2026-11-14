@@ -3,13 +3,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { CountUp } from '@/components/motion';
 import { Avatar, Button, Card, Empty, Header, InfoText, Loading, Pill, ProgressBar, Row, Screen, SectionTitle } from '@/components/ui';
 import { memberName, useTripMoney } from '@/hooks/useTrip';
 import { TripUnavailable } from '@/components/TripUnavailable';
 import { useMe } from '@/lib/session';
-import { computeBalances, EXPENSE_CATEGORIES, formatMoney } from '@/logic/split';
+import { computeBalances, EXPENSE_CATEGORIES, formatMoney, showVerifying } from '@/logic/split';
 import { subscribeAudit } from '@/services/split';
-import { timeAgo } from '@/services/util';
+import { timeAgo, tsToMs } from '@/services/util';
 import { colors, type } from '@/theme';
 
 export default function SplitDashboard() {
@@ -39,12 +40,12 @@ export default function SplitDashboard() {
 
       <Card>
         <Text style={[type.h3, { marginBottom: 12 }]}>Trip Expense Summary</Text>
-        <SummaryRow label="Total Expense" value={formatMoney(summary.total)} testID="sum-total" />
-        <SummaryRow label="Your Share" value={formatMoney(summary.yourShare)} testID="sum-share" />
-        <SummaryRow label="You Paid" value={formatMoney(summary.youPaid)} testID="sum-paid" />
+        <SummaryRow label="Total Expense" value={summary.total} testID="sum-total" />
+        <SummaryRow label="Your Share" value={summary.yourShare} testID="sum-share" />
+        <SummaryRow label="You Paid" value={summary.youPaid} testID="sum-paid" />
         <SummaryRow
           label={summary.yourBalance >= 0 ? 'You Will Receive' : 'You Owe'}
-          value={formatMoney(Math.abs(summary.yourBalance))}
+          value={Math.abs(summary.yourBalance)}
           color={summary.yourBalance > 0 ? colors.green : summary.yourBalance < 0 ? colors.red : colors.text}
           big
           testID="sum-balance"
@@ -152,7 +153,7 @@ export default function SplitDashboard() {
                   <Pill text="Personal" color={colors.textMuted} />
                 ) : e.validation === 'invalid' ? (
                   <Pill text="Rejected" color={colors.red} icon="alert-circle" />
-                ) : e.validation === 'pending' ? (
+                ) : showVerifying(e.validation, e.createdAt ? tsToMs(e.createdAt) : null) ? (
                   <Pill text="Verifying" color={colors.yellow} />
                 ) : (
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -183,13 +184,17 @@ export default function SplitDashboard() {
   );
 }
 
-function SummaryRow({ label, value, color = colors.text, big, testID }: { label: string; value: string; color?: string; big?: boolean; testID?: string }) {
+function SummaryRow({ label, value, color = colors.text, big, testID }: { label: string; value: string | number; color?: string; big?: boolean; testID?: string }) {
   return (
     <Row style={{ justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: big ? 1 : 0, borderColor: colors.cardBorder, marginTop: big ? 4 : 0 }}>
       <Text style={big ? type.h3 : type.small}>{label}</Text>
-      <Text style={{ color, fontWeight: '800', fontSize: big ? 22 : 15 }} testID={testID}>
-        {value}
-      </Text>
+      {typeof value === 'number' ? (
+        <CountUp value={value} format={(n) => formatMoney(Math.round(n))} style={{ color, fontWeight: '800', fontSize: big ? 22 : 15 }} testID={testID} />
+      ) : (
+        <Text style={{ color, fontWeight: '800', fontSize: big ? 22 : 15 }} testID={testID}>
+          {value}
+        </Text>
+      )}
     </Row>
   );
 }

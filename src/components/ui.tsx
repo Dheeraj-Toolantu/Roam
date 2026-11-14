@@ -21,6 +21,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { initials } from '../services/util';
+import { CountUp, IconBadge, PressScale, SkeletonCard, type IconGradient } from './motion';
 import { colors, gradients, radius, space, type } from '../theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -210,13 +211,14 @@ export function Button({
   );
   const h = small ? 38 : 52;
   return (
-    <Pressable
+    <PressScale
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={title}
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [{ opacity: disabled ? 0.5 : pressed ? 0.85 : 1, borderRadius: radius.pill }, style]}>
+      scaleTo={0.96}
+      style={[{ opacity: disabled ? 0.5 : 1, borderRadius: radius.pill }, grad && !disabled ? styles.btnGlow : null, style]}>
       {grad ? (
         <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.btn, { height: h }]}>
           {inner}
@@ -233,7 +235,7 @@ export function Button({
           {inner}
         </View>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -255,19 +257,14 @@ export function IconButton({
   accessibilityLabel?: string;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? icon}
-      hitSlop={8}
-      style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.7 }, style]}>
+    <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? icon} hitSlop={8} scaleTo={0.88} style={[styles.iconBtn, style]}>
       <Ionicons name={icon} size={size} color={color} />
       {!!badge && badge > 0 && (
         <View style={styles.badge}>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{badge > 9 ? '9+' : badge}</Text>
         </View>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -276,9 +273,9 @@ export function IconButton({
 export function Card({ children, style, onPress, testID }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; testID?: string }) {
   if (onPress)
     return (
-      <Pressable testID={testID} onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }, style]}>
+      <PressScale testID={testID} onPress={onPress} scaleTo={0.97} style={[styles.card, style]}>
         {children}
-      </Pressable>
+      </PressScale>
     );
   return (
     <View testID={testID} style={[styles.card, style]}>
@@ -374,7 +371,11 @@ export function Stat({ value, label, icon, color = colors.text }: { value: strin
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
       {icon && <Ionicons name={icon} size={16} color={colors.textMuted} style={{ marginBottom: 2 }} />}
-      <Text style={{ color, fontSize: 18, fontWeight: '800' }}>{value}</Text>
+      {typeof value === 'number' ? (
+        <CountUp value={value} style={{ color, fontSize: 18, fontWeight: '800' }} />
+      ) : (
+        <Text style={{ color, fontSize: 18, fontWeight: '800' }}>{value}</Text>
+      )}
       <Text style={[type.tiny, { textAlign: 'center' }]}>{label}</Text>
     </View>
   );
@@ -479,24 +480,37 @@ export function Toggle({ value, onChange, label, hint, testID }: { value: boolea
 
 // ---------------- Feedback ----------------
 
-export function Empty({ icon = 'compass-outline', title, text, action }: { icon?: IconName; title: string; text?: string; action?: React.ReactNode }) {
+export function Empty({
+  icon = 'compass-outline',
+  title,
+  text,
+  action,
+  gradient = 'ocean',
+}: {
+  icon?: IconName;
+  title: string;
+  text?: string;
+  action?: React.ReactNode;
+  gradient?: IconGradient;
+}) {
   return (
     <View style={{ alignItems: 'center', padding: space.xl, gap: 8 }}>
-      <View style={styles.emptyIcon}>
-        <Ionicons name={icon} size={30} color={colors.cyan} />
-      </View>
+      <IconBadge icon={icon} gradient={gradient} size={68} rounded="circle" float style={{ marginBottom: 8 }} />
       <Text style={[type.h3, { textAlign: 'center' }]}>{title}</Text>
-      {!!text && <Text style={[type.small, { textAlign: 'center' }]}>{text}</Text>}
+      {!!text && <Text style={[type.small, { textAlign: 'center', lineHeight: 19 }]}>{text}</Text>}
       {action}
     </View>
   );
 }
 
+/** Full-screen loading: shimmering skeleton cards (feels faster than a spinner). */
 export function Loading({ label }: { label?: string }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 }}>
-      <ActivityIndicator color={colors.cyan} size="large" />
-      {!!label && <Text style={type.small}>{label}</Text>}
+    <View style={{ flex: 1, padding: 4, paddingTop: 8 }} accessibilityLabel={label ?? 'Loading'}>
+      {!!label && <Text style={[type.small, { marginBottom: 10 }]}>{label}</Text>}
+      <SkeletonCard media={false} />
+      <SkeletonCard />
+      <SkeletonCard media={false} />
     </View>
   );
 }
@@ -528,18 +542,31 @@ export function ProgressBar({ pct, color = colors.cyan, height = 8 }: { pct: num
   );
 }
 
-export function QuickAction({ icon, label, onPress, colors: c, testID }: { icon: IconName; label: string; onPress: () => void; colors: readonly [string, string]; testID?: string }) {
+const QUICK_GRADIENT: Record<string, IconGradient> = {};
+export function QuickAction({
+  icon,
+  label,
+  onPress,
+  colors: c,
+  testID,
+  gradient,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  colors: readonly [string, string];
+  testID?: string;
+  gradient?: IconGradient;
+}) {
   return (
-    <Pressable testID={testID} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }}>
-      <LinearGradient colors={[c[0] + '55', c[1] + '33']} style={styles.quick}>
-        <View style={[styles.quickIcon, { borderColor: c[0] }]}>
-          <Ionicons name={icon} size={20} color="#fff" />
-        </View>
-        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>
+    <PressScale testID={testID} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }} scaleTo={0.92}>
+      <LinearGradient colors={[c[0] + '40', c[1] + '1F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quick}>
+        <IconBadge icon={icon} gradient={gradient ?? QUICK_GRADIENT[label] ?? 'violet'} size={42} />
+        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center', letterSpacing: 0.2 }} numberOfLines={2}>
           {label}
         </Text>
       </LinearGradient>
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -554,6 +581,7 @@ const styles = StyleSheet.create({
   maxWidth: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: space.lg },
   btn: { borderRadius: radius.pill, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  btnGlow: { shadowColor: '#8B5CF6', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   iconBtn: {
     width: 40,
     height: 40,

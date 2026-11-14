@@ -8,6 +8,7 @@ import { ActivityComposer } from '@/components/ActivityComposer';
 import { GoogleMap } from '@/components/GoogleMap';
 import { confirmAsync, toast } from '@/components/PostCard';
 import { ActivityTimeline } from '@/components/Timeline';
+import { PressScale, PulseRing } from '@/components/motion';
 import { Button, Card, Chip, Empty, ErrorText, Field, Header, IconButton, InfoText, Loading, Pill, Row, Screen, SectionTitle, Stat } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { useMe } from '@/lib/session';
@@ -28,7 +29,7 @@ import { createPost } from '@/services/social';
 import { useLiveLocation } from '@/services/location';
 import { tracker, type TrackerState } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
-import { colors, radius, type } from '@/theme';
+import { colors, type } from '@/theme';
 import type { Activity, Journey, Visibility } from '@/types';
 
 export default function JourneyScreen() {
@@ -206,11 +207,13 @@ export default function JourneyScreen() {
             ) : (
               <IconButton icon="play" size={26} color={colors.green} onPress={doResume} style={{ width: 58, height: 58, borderRadius: 29 }} accessibilityLabel="Resume journey" />
             )}
-            <Pressable onPress={() => router.push(`/capture?journeyId=${j.id}`)} accessibilityLabel="Capture moment" testID="journey-capture">
-              <LinearGradient colors={['#F43F5E', '#EF4444']} style={{ width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#ffffff33' }}>
-                <Ionicons name="camera" size={32} color="#fff" />
-              </LinearGradient>
-            </Pressable>
+            <PressScale onPress={() => router.push(`/capture?journeyId=${j.id}`)} accessibilityLabel="Capture moment" testID="journey-capture" scaleTo={0.9}>
+              <PulseRing color={j.status === 'active' ? colors.red : 'transparent'} size={84}>
+                <LinearGradient colors={['#F43F5E', '#EF4444']} style={{ width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#ffffff33' }}>
+                  <Ionicons name="camera" size={32} color="#fff" />
+                </LinearGradient>
+              </PulseRing>
+            </PressScale>
             <IconButton icon="stop" size={24} color={colors.red} onPress={doEnd} style={{ width: 58, height: 58, borderRadius: 29 }} accessibilityLabel="End journey" />
           </Row>
           <Text style={[type.tiny, { textAlign: 'center', marginTop: 8 }]}>{busy ? 'Saving…' : 'Pause · Capture · End'}</Text>

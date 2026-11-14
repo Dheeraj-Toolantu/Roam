@@ -6,13 +6,16 @@ import { Pressable, Text, View } from 'react-native';
 import { signInWithProvider } from '../lib/session';
 import { errorMessage } from '../services/util';
 import { colors, radius, type } from '../theme';
+import { Pop } from './motion';
 import { ErrorText, Logo, Row, Screen, Wordmark } from './ui';
 
 export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Screen edges={['top', 'bottom']} contentStyle={{ paddingTop: 40 }}>
       <View style={{ alignItems: 'center', marginBottom: 28 }}>
-        <Logo size={64} />
+        <Pop>
+          <Logo size={64} />
+        </Pop>
         <View style={{ height: 10 }} />
         <Wordmark size={36} />
         <Text style={[type.h3, { marginTop: 10, fontWeight: '600' }]}>{title}</Text>

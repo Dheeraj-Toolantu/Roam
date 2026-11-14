@@ -5,6 +5,7 @@ import { Share, Text, View } from 'react-native';
 
 import { MagicPlayer, TEMPLATES, type MagicData, type Template } from '@/components/MagicPlayer';
 import { toast } from '@/components/PostCard';
+import { Confetti, tap } from '@/components/motion';
 import { Button, Card, Chip, Empty, ErrorText, Header, InfoText, Loading, Row, Screen } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { db } from '@/lib/firebase';
@@ -115,6 +116,7 @@ export default function Magic() {
         createdAt: serverTimestamp(),
       });
       setSavedId(ref.id);
+      tap('success');
       if (group) await notifyMany(group.memberIds, me, 'video', `${me.displayName} created the “${group.name}” group video 🎬`, `/magic?groupId=${group.id}`);
       toast('Video saved to your journeys');
     } catch (e) {
@@ -128,6 +130,7 @@ export default function Magic() {
     <Screen edges={['top', 'bottom']}>
       <Header title="✨ ROAM Magic Video" subtitle={isGroup ? 'Group cinematic video' : 'Personal cinematic video'} />
       <MagicPlayer data={data} template={template} />
+      <Confetti fire={savedId ? 1 : 0} />
 
       <Text style={[type.h3, { marginTop: 20, marginBottom: 10 }]}>Template</Text>
       <Row style={{ flexWrap: 'wrap' }}>

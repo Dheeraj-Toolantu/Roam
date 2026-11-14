@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { IconBadge, PressScale } from '@/components/motion';
 import { Button, Card, Chip, ErrorText, Field, InfoText, ProgressBar, Row, Screen } from '@/components/ui';
 import { toast } from '@/components/PostCard';
 import { useMe } from '@/lib/session';
@@ -189,11 +190,11 @@ export default function Capture() {
 
 function CaptureTile({ icon, label, onPress, colors: c, testID }: { icon: 'camera' | 'images'; label: string; onPress: () => void; colors: readonly [string, string, ...string[]]; testID?: string }) {
   return (
-    <Pressable onPress={onPress} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={label} testID={testID}>
-      <LinearGradient colors={c} style={{ height: 130, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <Ionicons name={icon} size={36} color="#fff" />
-        <Text style={{ color: '#fff', fontWeight: '800' }}>{label}</Text>
+    <PressScale onPress={onPress} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={label} testID={testID} scaleTo={0.94}>
+      <LinearGradient colors={c} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 130, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <IconBadge icon={icon} gradient="violet" size={54} rounded="circle" float />
+        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>{label}</Text>
       </LinearGradient>
-    </Pressable>
+    </PressScale>
   );
 }

@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Appear } from '@/components/motion';
 import { Avatar, Button, Empty, Header, Loading, Row, Screen, type IconName } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { markAllRead, markRead, subscribeNotifications } from '@/services/notifications';
@@ -48,8 +49,9 @@ export default function NotificationsScreen() {
       ) : visible.length === 0 ? (
         <Empty icon="notifications-outline" title="No notifications yet" text="Follows, likes, crew activity and expenses will show up here." />
       ) : (
-        visible.map((n) => (
-          <Pressable key={n.id} onPress={() => open(n)} style={[styles.row, !n.read && styles.unread]} testID={`notification-${n.id}`}>
+        visible.map((n, i) => (
+          <Appear key={n.id} index={i}>
+          <Pressable onPress={() => open(n)} style={[styles.row, !n.read && styles.unread]} testID={`notification-${n.id}`}>
             <View>
               <Avatar name={n.fromName} size={42} />
               <View style={styles.typeIcon}>
@@ -62,6 +64,7 @@ export default function NotificationsScreen() {
             </View>
             {!n.read && <View style={styles.dot} />}
           </Pressable>
+          </Appear>
         ))
       )}
       <Row style={{ justifyContent: 'center', marginTop: space.lg }}>

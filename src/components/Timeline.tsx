@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { colors, radius, type } from '../theme';
 import type { Activity } from '../types';
+import { Appear } from './motion';
 import { Row, type IconName } from './ui';
 
 const ICON: Record<Activity['type'], IconName> = {
@@ -38,7 +39,7 @@ export function ActivityTimeline({ items, onPress }: { items: Activity[]; onPres
         const day = dayOf(a.createdAt);
         const showDay = i === 0 || day !== dayOf(items[i - 1].createdAt);
         return (
-          <View key={a.id}>
+          <Appear key={a.id} index={i}>
             {showDay && <Text style={[type.tiny, { marginVertical: 8, fontWeight: '700', color: colors.cyan }]}>{day.toUpperCase()}</Text>}
             <Pressable onPress={() => onPress?.(a)} testID={`activity-${a.type}`}>
               <Row gap={12} style={{ alignItems: 'flex-start' }}>
@@ -80,7 +81,7 @@ export function ActivityTimeline({ items, onPress }: { items: Activity[]; onPres
                 </View>
               </Row>
             </Pressable>
-          </View>
+          </Appear>
         );
       })}
     </View>

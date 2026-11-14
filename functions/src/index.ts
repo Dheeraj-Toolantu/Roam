@@ -18,7 +18,9 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { budgetStatus, computeBalances, formatMoney, suggestSettlements, validateExpense, type ExpenseLike, type SettlementLike } from './shared/split';
 
 initializeApp();
-setGlobalOptions({ region: 'asia-south1', maxInstances: 10 });
+// Firestore triggers must run in a region matching the database location.
+// jododeal-b845b's Firestore is in the nam5 (US) multi-region → us-central1.
+setGlobalOptions({ region: process.env.FUNCTIONS_REGION || 'us-central1', maxInstances: 10 });
 const db = getFirestore();
 
 interface GroupDoc {

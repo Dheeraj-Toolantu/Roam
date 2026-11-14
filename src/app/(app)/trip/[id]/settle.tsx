@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { Confetti, IconBadge, Pop, tap } from '@/components/motion';
 import { Avatar, Button, Card, Empty, ErrorText, Header, Loading, Pill, Row, Screen, SectionTitle } from '@/components/ui';
 import { memberName, useTripMoney } from '@/hooks/useTrip';
 import { TripUnavailable } from '@/components/TripUnavailable';
@@ -51,7 +52,9 @@ export default function SettleUp() {
 
       {transfers.length === 0 ? (
         <Card style={{ alignItems: 'center', gap: 6 }} testID="all-settled">
-          <Ionicons name="checkmark-circle" size={44} color={colors.green} />
+          <Pop>
+            <IconBadge icon="checkmark-done" gradient="mint" size={64} rounded="circle" />
+          </Pop>
           <Text style={type.h2}>All settled up!</Text>
           <Text style={type.small}>Everyone&apos;s balance is ₹0.</Text>
         </Card>
@@ -112,7 +115,10 @@ export default function SettleUp() {
               {s.toUid === me.uid ? (
                 <Row style={{ marginTop: 10 }}>
                   <Button small variant="ghost" title="Not received" style={{ flex: 1 }} disabled={!!busy} onPress={() => run(s.id, () => confirmSettlement(group, me, s, false))} />
-                  <Button small testID="confirm-payment" variant="success" title="Mark as Settled" style={{ flex: 1 }} loading={busy === s.id} onPress={() => run(s.id, () => confirmSettlement(group, me, s, true))} />
+                  <Button small testID="confirm-payment" variant="success" title="Mark as Settled" style={{ flex: 1 }} loading={busy === s.id} onPress={() => run(s.id, async () => {
+                      await confirmSettlement(group, me, s, true);
+                      tap('success');
+                    })} />
                 </Row>
               ) : (
                 <Pill text={`Waiting for ${name(s.toUid)}`} color={colors.yellow} style={{ marginTop: 8 }} />
@@ -122,6 +128,7 @@ export default function SettleUp() {
         </>
       )}
 
+      <Confetti fire={transfers.length === 0 && history.some((x) => x.status === 'confirmed') ? 1 : 0} />
       <SectionTitle title="Settlement history" />
       {history.length === 0 ? (
         <Empty icon="time-outline" title="No settlements yet" />

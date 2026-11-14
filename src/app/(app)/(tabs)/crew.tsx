@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { Appear } from '@/components/motion';
 import { AvatarStack, Button, Card, Empty, ErrorText, Logo, Row, Screen, Segmented } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { tripDates } from '@/hooks/useTrip';
@@ -72,8 +73,10 @@ export default function Crew() {
           />
         ) : (
           <>
-            {groups.map((g) => (
-              <CrewCard key={g.id} g={g} />
+            {groups.map((g, i) => (
+              <Appear key={g.id} index={i}>
+                <CrewCard g={g} />
+              </Appear>
             ))}
             <Button title="Join with invite code" icon="key-outline" variant="secondary" onPress={() => router.push('/trip/join')} style={{ marginTop: 6 }} testID="join-with-code" />
           </>

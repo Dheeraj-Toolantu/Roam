@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { Appear } from '@/components/motion';
 import { Button, Empty, Pill, Row, Screen, Segmented, Stat, Card } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { useMe } from '@/lib/session';
@@ -57,7 +58,11 @@ export default function Journeys() {
           action={<Button title="Start Journey" onPress={() => router.push('/journey/start')} style={{ marginTop: 10 }} />}
         />
       ) : (
-        shown.map((j) => <JourneyCard key={j.id} j={j} />)
+        shown.map((j, i) => (
+          <Appear key={j.id} index={i}>
+            <JourneyCard j={j} />
+          </Appear>
+        ))
       )}
     </Screen>
   );
