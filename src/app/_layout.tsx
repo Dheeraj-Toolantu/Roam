@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 
+import { DialogHost } from '@/components/Dialogs';
 import { SessionProvider } from '@/lib/session';
 import { colors } from '@/theme';
 
@@ -26,6 +27,7 @@ export default function RootLayout() {
           <SessionProvider>
             <StatusBar style="light" />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }} />
+            <DialogHost />
           </SessionProvider>
         </ThemeProvider>
       </SafeAreaProvider>

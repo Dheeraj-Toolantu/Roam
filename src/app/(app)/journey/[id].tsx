@@ -89,13 +89,15 @@ export default function JourneyScreen() {
   const doResume = () => run(async () => { await resume(j); });
   const doEnd = async () => {
     if (!(await confirmAsync('End journey?', 'ROAM will stop tracking and prepare your cinematic story.', 'End journey'))) return;
+    let ended = false;
     await run(async () => {
       await tracker.stop();
       await end(j);
       tracker.dismissEndSuggestion();
+      ended = true;
     });
-    // Trip over → go straight to the auto-generated cinematic story
-    router.push(`/magic?journeyId=${j.id}&fresh=1`);
+    // Trip over → go straight to the auto-generated cinematic story (only if ending succeeded)
+    if (ended) router.push(`/magic?journeyId=${j.id}&fresh=1`);
   };
 
   const live = j.status !== 'completed';

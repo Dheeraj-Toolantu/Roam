@@ -89,7 +89,16 @@ async function newUser(label) {
   const context = await browser.newContext({ ...phone, permissions: ['geolocation'], geolocation: BAGA, locale: 'en-IN' });
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
-  page.on('dialog', (d) => d.accept());
+  // Simulate environments that block browser popups (in-app browsers, embedded previews):
+  // the app must use its own in-app dialogs, never window.confirm/alert.
+  await page.addInitScript(() => {
+    window.confirm = () => false;
+    window.alert = () => {};
+  });
+  page.on('dialog', (d) => {
+    consoleErrors.push(`[${label}] pageerror: native ${d.type()} dialog used: ${d.message().slice(0, 80)}`);
+    void d.dismiss();
+  });
   page.on('pageerror', (e) => consoleErrors.push(`[${label}] pageerror: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() === 'error' && !/Download the React DevTools|favicon/.test(m.text())) consoleErrors.push(`[${label}] ${m.text().slice(0, 200)}`);
@@ -227,6 +236,8 @@ try {
     await a.getByLabel('Resume journey').click();
     await text(a, 'Journey active');
     await a.getByLabel('End journey').filter({ visible: true }).first().click();
+    await tid(a, 'dialog-title').filter({ visible: true }).first().waitFor();
+    await tid(a, 'dialog-confirm').filter({ visible: true }).first().click();
     // Trip over → the cinematic story opens automatically
     await tid(a, 'trip-complete-banner').filter({ visible: true }).first().waitFor();
     await a.goBack();
@@ -472,7 +483,8 @@ try {
 
   await step('Sign out returns to login', async () => {
     await b.goto(BASE + '/profile');
-    await tid(b, 'sign-out').click();
+    await tid(b, 'sign-out').filter({ visible: true }).first().click();
+    await tid(b, 'dialog-confirm').filter({ visible: true }).first().click(); // in-app confirmation sheet
     await tid(b, 'login-email').waitFor();
   });
 } catch {
