@@ -1,7 +1,7 @@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Share, Text, View } from 'react-native';
+import { Platform, Share, Text, View } from 'react-native';
 
 import { MagicPlayer, TEMPLATES, type MagicData, type Template } from '@/components/MagicPlayer';
 import { toast } from '@/components/PostCard';
@@ -10,6 +10,7 @@ import { StoryVideoExporter } from '@/components/StoryVideoExporter';
 import { Button, Card, Chip, Empty, ErrorText, Header, InfoText, Loading, Row, Screen } from '@/components/ui';
 import { CITY_BY_ID } from '@/data/cities';
 import { db } from '@/lib/firebase';
+import { clearCustomMusic, getCustomMusic, pickCustomMusic, type CustomMusic } from '@/lib/musicPlayer';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { TRACKS, type TrackId } from '@/logic/musicScore';
@@ -32,6 +33,7 @@ export default function Magic() {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [template, setTemplate] = useState<Template>('cinematic');
   const [music, setMusic] = useState<TrackId>('wanderlust');
+  const [song, setSong] = useState<CustomMusic | null>(() => getCustomMusic());
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -169,7 +171,46 @@ export default function Magic() {
         {TRACKS.map((m) => (
           <Chip key={m.id} label={`${m.emoji} ${m.label}`} active={music === m.id} onPress={() => setMusic(m.id)} testID={`music-${m.id}`} />
         ))}
+        <Chip
+          icon="musical-notes"
+          label={song ? `🎧 ${song.name.slice(0, 22)}` : '📁 My music'}
+          active={music === 'custom'}
+          testID="music-custom"
+          onPress={async () => {
+            setErr(null);
+            if (Platform.OS !== 'web') return toast('Adding your own song is available in the ROAM web app for now');
+            if (song && music !== 'custom') return setMusic('custom');
+            try {
+              const picked = await pickCustomMusic();
+              if (picked) {
+                setSong(picked);
+                setMusic('custom');
+                toast(`🎧 “${picked.name}” added as your soundtrack`);
+              }
+            } catch (e) {
+              setErr(errorMessage(e));
+            }
+          }}
+        />
       </Row>
+      {song && (
+        <Row style={{ marginTop: 4, justifyContent: 'space-between' }}>
+          <Text style={[type.tiny, { flex: 1 }]} testID="custom-music-name">
+            Your song: {song.name} · {(song.sizeBytes / 1024 / 1024).toFixed(1)} MB. Only use music you have the rights to share.
+          </Text>
+          <Button
+            small
+            variant="ghost"
+            title="Remove"
+            testID="custom-music-remove"
+            onPress={() => {
+              clearCustomMusic();
+              setSong(null);
+              if (music === 'custom') setMusic('wanderlust');
+            }}
+          />
+        </Row>
+      )}
       {storyData && <StoryVideoExporter data={storyData} track={music} autoFocus={fresh === '1'} onCreated={() => void (!savedId && canSave && save())} />}
       {isGroup && (
         <Card style={{ marginTop: 16 }}>

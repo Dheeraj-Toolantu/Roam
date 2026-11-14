@@ -12,6 +12,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  type Timestamp,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -21,8 +22,8 @@ import { db } from '../lib/firebase';
 import { fetchNewestDocs } from '../lib/indexFallback';
 import type { Comment, Post, UserProfile, Visibility } from '../types';
 import { notify } from './notifications';
-import { getBlockedIds, getFollowingIds } from './users';
-import { withId } from './util';
+import { getBlockedIds, getFollowingIds, getProfile } from './users';
+import { tsToMs, withId } from './util';
 
 export interface NewPost {
   text: string;
@@ -117,6 +118,40 @@ export async function hasLiked(postId: string, uid: string) {
   return (await getDoc(doc(db, 'posts', postId, 'likes', uid))).exists();
 }
 
+export interface Liker {
+  uid: string;
+  name: string;
+  username: string;
+  photoURL: string | null;
+  at: number;
+}
+
+/** People who liked a post, newest first. Older likes (stored before names were saved) fall back to the profile. */
+export function subscribeLikers(postId: string, cb: (likers: Liker[]) => void) {
+  return onSnapshot(
+    query(collection(db, 'posts', postId, 'likes'), orderBy('at', 'desc'), limit(200)),
+    async (snap) => {
+      const list = await Promise.all(
+        snap.docs.map(async (d) => {
+          const v = d.data() as { at?: Timestamp | null; name?: string; username?: string; photoURL?: string | null };
+          let name = v.name;
+          let username = v.username ?? '';
+          let photoURL = v.photoURL ?? null;
+          if (!name) {
+            const p = await getProfile(d.id).catch(() => null);
+            name = p?.displayName ?? 'A traveller';
+            username = p?.username ?? '';
+            photoURL = p?.photoURL ?? null;
+          }
+          return { uid: d.id, name, username, photoURL, at: tsToMs(v.at) };
+        }),
+      );
+      cb(list);
+    },
+    () => cb([]),
+  );
+}
+
 export async function toggleLike(post: Post, me: UserProfile): Promise<boolean> {
   const likeRef = doc(db, 'posts', post.id, 'likes', me.uid);
   const liked = (await getDoc(likeRef)).exists();
@@ -125,7 +160,9 @@ export async function toggleLike(post: Post, me: UserProfile): Promise<boolean> 
     b.delete(likeRef);
     b.update(doc(db, 'posts', post.id), { likesCount: increment(-1) });
   } else {
-    b.set(likeRef, { at: serverTimestamp() });
+    // Name/photo are copied into the like so the post's audience can see who liked it
+    // (even when the liker's profile itself is private).
+    b.set(likeRef, { at: serverTimestamp(), name: me.displayName, username: me.username ?? '', photoURL: me.photoURL ?? null });
     b.update(doc(db, 'posts', post.id), { likesCount: increment(1) });
   }
   await b.commit();

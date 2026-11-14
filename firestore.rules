@@ -153,8 +153,14 @@ service cloud.firestore {
       allow delete: if signedIn() && (existing().authorId == me() || isAdmin());
 
       match /likes/{uid} {
-        allow read: if signedIn();
-        allow create, delete: if signedIn() && me() == uid;
+        // Anyone who can see the post can see who liked it.
+        allow read: if signedIn() && canReadPost(get(/databases/$(database)/documents/posts/$(pid)).data);
+        allow create: if signedIn() && me() == uid
+          && incoming().keys().hasOnly(['at', 'name', 'username', 'photoURL'])
+          && (!('name' in incoming()) || (incoming().name is string && incoming().name.size() <= 80))
+          && (!('username' in incoming()) || (incoming().username is string && incoming().username.size() <= 40))
+          && (!('photoURL' in incoming()) || incoming().photoURL == null || (incoming().photoURL is string && incoming().photoURL.size() <= 2048));
+        allow delete: if signedIn() && me() == uid;
       }
       match /comments/{cid} {
         allow read: if signedIn() && canReadPost(get(/databases/$(database)/documents/posts/$(pid)).data);

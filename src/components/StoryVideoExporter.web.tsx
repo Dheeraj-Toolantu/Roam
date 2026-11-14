@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking, Text, View } from 'react-native';
 
 import type { TrackId } from '../logic/musicScore';
-import type { StoryTemplate } from '../logic/storyTimeline';
+import { STORY_LENGTHS, STORY_STYLES, type StoryStyle, type StoryTemplate } from '../logic/storyTimeline';
 import { stopPreviewMusic } from '../lib/musicPlayer';
 import {
   canExportStoryVideo,
   canShareFiles,
   downloadStoryVideo,
+  firstMemoryTime,
+  renderStoryFrame,
   renderStoryVideo,
   shareStoryVideo,
   type StoryData,
@@ -37,6 +39,7 @@ export function StoryVideoExporter({
   onCreated?: (r: StoryVideoResult, template: StoryTemplate) => void;
 }) {
   const [template, setTemplate] = useState<StoryTemplate>('reel');
+  const [style, setStyle] = useState<StoryStyle>('classic');
   const [busy, setBusy] = useState(false);
   const [pct, setPct] = useState(0);
   const [stage, setStage] = useState('');
@@ -60,6 +63,7 @@ export function StoryVideoExporter({
     try {
       const r = await renderStoryVideo(data, {
         template,
+        style,
         track,
         monitorAudio: true,
         onProgress: (p, s) => {
@@ -105,10 +109,14 @@ export function StoryVideoExporter({
 
       {!result && !busy && (
         <>
+          <Text style={[type.small, { fontWeight: '800', marginBottom: 8 }]}>Length</Text>
           <Row style={{ flexWrap: 'wrap', marginBottom: 12 }}>
-            <Chip label="Reel · 30s" icon="phone-portrait" active={template === 'reel'} onPress={() => setTemplate('reel')} testID="export-reel" />
-            <Chip label="Cinematic · 1 min" icon="film" active={template === 'cinematic'} onPress={() => setTemplate('cinematic')} testID="export-cinematic" />
+            {STORY_LENGTHS.map((l) => (
+              <Chip key={l.id} label={l.label} icon={l.icon} active={template === l.id} onPress={() => setTemplate(l.id)} testID={`export-${l.id}`} />
+            ))}
           </Row>
+          <Text style={[type.small, { fontWeight: '800', marginBottom: 8 }]}>Style</Text>
+          <StylePicker data={data} template={template} value={style} onChange={setStyle} />
           <PressScale onPress={create} testID="create-story-video" accessibilityRole="button" accessibilityLabel="Create story video" scaleTo={0.96}>
             <LinearGradient colors={gradients.sunset} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10 }}>
               <Ionicons name="sparkles" size={20} color="#fff" />
@@ -116,7 +124,7 @@ export function StoryVideoExporter({
             </LinearGradient>
           </PressScale>
           <Text style={[type.tiny, { marginTop: 8, textAlign: 'center' }]}>
-            Takes about {template === 'reel' ? '30 seconds' : '1 minute'} — keep this tab open. You&apos;ll hear the soundtrack while it records.
+            Takes about {template === 'short' ? '15 seconds' : template === 'reel' ? '30 seconds' : '1 minute'} — keep this tab open. You&apos;ll hear the soundtrack while it records.
           </Text>
         </>
       )}
@@ -144,6 +152,11 @@ export function StoryVideoExporter({
               data-bytes={result.blob.size}
               data-duration={result.durationSec}
               data-has-audio={result.hasAudio ? '1' : '0'}
+              data-media-total={result.media.total}
+              data-media-loaded={result.media.loaded}
+              data-videos={result.media.videos}
+              data-videos-loaded={result.media.videosLoaded}
+              data-style={result.style}
               style={{ width: 240, aspectRatio: '9 / 16', borderRadius: 18, background: '#000' }}
             />
           </View>
@@ -151,6 +164,14 @@ export function StoryVideoExporter({
             {result.width}×{result.height} · {Math.round(result.durationSec)}s · {(result.blob.size / 1024 / 1024).toFixed(1)} MB · {result.mimeType.includes('mp4') ? 'MP4' : 'WebM'}
             {result.hasAudio ? ' · with music' : ''}
           </Text>
+          {result.media.total > 0 && (
+            <Text style={[type.tiny, { textAlign: 'center', color: result.media.loaded < result.media.total ? colors.yellow : colors.green }]} testID="story-media">
+              {result.media.loaded}/{result.media.total} photos & videos included
+              {result.media.loaded < result.media.total
+                ? ` — ${result.media.total - result.media.loaded} couldn't be read by this browser${result.media.videos > result.media.videosLoaded ? ' (iPhone HEVC clips play best in Safari)' : ''}`
+                : ' ✓'}
+            </Text>
+          )}
           <Button testID="share-story" title={canShareFiles(result) ? 'Share to WhatsApp, Facebook…' : 'Download & share'} icon="share-social" variant="primary" onPress={share} />
           <Row>
             <Button
@@ -203,4 +224,48 @@ export function StoryVideoExporter({
       <Confetti fire={result ? result.blob.size : 0} />
     </Card>
   );
+}
+
+/** Style options with a live thumbnail of each look. */
+function StylePicker({ data, template, value, onChange }: { data: StoryData; template: StoryTemplate; value: StoryStyle; onChange: (s: StoryStyle) => void }) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      {STORY_STYLES.map((st) => (
+        <PressScale
+          key={st.id}
+          onPress={() => onChange(st.id)}
+          testID={`style-${st.id}`}
+          accessibilityRole="button"
+          accessibilityLabel={`${st.label} style`}
+          accessibilityState={{ selected: value === st.id }}
+          scaleTo={0.94}
+          style={{ width: '31%' }}>
+          <View style={{ borderRadius: 14, borderWidth: 2, borderColor: value === st.id ? colors.pink : colors.cardBorder, overflow: 'hidden', backgroundColor: '#000' }}>
+            <StyleThumb data={data} template={template} style={st.id} />
+            <View style={{ padding: 6, backgroundColor: value === st.id ? colors.pink + '33' : colors.card }}>
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: 12 }} numberOfLines={1}>
+                {st.emoji} {st.label}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 10 }} numberOfLines={1}>
+                {st.vibe}
+              </Text>
+            </View>
+          </View>
+        </PressScale>
+      ))}
+    </View>
+  );
+}
+
+function StyleThumb({ data, template, style }: { data: StoryData; template: StoryTemplate; style: StoryStyle }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    try {
+      renderStoryFrame(ref.current, data, template, firstMemoryTime(data, template), style);
+    } catch {
+      /* preview only */
+    }
+  }, [data, template, style]);
+  return <canvas ref={ref} width={144} height={256} style={{ width: '100%', aspectRatio: '9 / 16', display: 'block' }} />;
 }

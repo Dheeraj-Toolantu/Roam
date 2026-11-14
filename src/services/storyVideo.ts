@@ -5,7 +5,7 @@
  * The web implementation lives in storyVideo.web.ts.
  */
 import type { TrackId } from '../logic/musicScore';
-import type { StoryMemory, StoryTemplate } from '../logic/storyTimeline';
+import type { StoryMemory, StoryStyle, StoryTemplate } from '../logic/storyTimeline';
 
 export const STORY_W = 720;
 export const STORY_H = 1280;
@@ -32,11 +32,14 @@ export interface StoryVideoResult {
   hasAudio: boolean;
   width: number;
   height: number;
+  media: { total: number; loaded: number; videos: number; videosLoaded: number };
+  style: StoryStyle;
 }
 
 export interface ExportOptions {
   template: StoryTemplate;
   track: TrackId;
+  style?: StoryStyle;
   onProgress?: (pct: number, stage: string) => void;
   monitorAudio?: boolean;
 }
@@ -56,3 +59,7 @@ export async function shareStoryVideo(_res: StoryVideoResult, _title: string): P
   throw new Error('Story video export is available in the ROAM web app for now.');
 }
 export function downloadStoryVideo(_res: StoryVideoResult) {}
+export function renderStoryFrame(_canvas: unknown, _data: StoryData, _template: StoryTemplate, _t: number, _style?: StoryStyle) {}
+export function firstMemoryTime(_data: StoryData, _template: StoryTemplate) {
+  return 0;
+}

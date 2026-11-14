@@ -1,13 +1,34 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildScore, midiToHz, TRACKS } from '../../src/logic/musicScore';
-import { buildStoryTimeline, pickMemories, shotAt, storyFileName, TEMPLATE_SPECS, type StoryMemory } from '../../src/logic/storyTimeline';
+import { buildStoryTimeline, pickMemories, shotAt, STORY_LENGTHS, STORY_STYLES, storyFileName, TEMPLATE_SPECS, type StoryMemory } from '../../src/logic/storyTimeline';
 
 const mem = (n: number, videoEvery = 0): StoryMemory[] =>
   Array.from({ length: n }, (_, i) => ({ url: `u${i}`, isVideo: videoEvery > 0 && i % videoEvery === 0, place: `P${i}`, time: 1000 + i * 60_000 }));
 
 describe('story timeline', () => {
-  it.each(['reel', 'cinematic'] as const)('%s fills exactly the template length', (tpl) => {
+  it('offers several lengths and visual styles, each unique', () => {
+    expect(STORY_LENGTHS.map((l) => l.id)).toEqual(['short', 'reel', 'cinematic']);
+    expect(STORY_STYLES.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(STORY_STYLES.map((s) => s.id)).size).toBe(STORY_STYLES.length);
+  });
+
+  it('mixed photos + videos: every chosen memory gets a shot and videos run longer', () => {
+    const mixed = mem(7, 2);
+    for (const tpl of ['short', 'reel', 'cinematic'] as const) {
+      const m = buildStoryTimeline(mixed, tpl).shots.filter((s) => s.kind === 'memory') as Extract<ReturnType<typeof buildStoryTimeline>['shots'][number], { kind: 'memory' }>[];
+      expect(m.length).toBe(Math.min(7, TEMPLATE_SPECS[tpl].maxMemories));
+      expect(m.every((s) => s.memory && s.duration > 0)).toBe(true);
+      expect(m.some((s) => s.memory.isVideo) && m.some((s) => !s.memory.isVideo)).toBe(true);
+    }
+  });
+
+  it('pickMemories handles n = 1 and n = 0', () => {
+    expect(pickMemories(mem(5), 1)).toHaveLength(1);
+    expect(pickMemories(mem(5), 0)).toHaveLength(0);
+  });
+
+  it.each(['short', 'reel', 'cinematic'] as const)('%s fills exactly the template length', (tpl) => {
     for (const n of [0, 1, 3, 8, 40]) {
       const { shots, duration } = buildStoryTimeline(mem(n, 3), tpl);
       expect(duration).toBeCloseTo(TEMPLATE_SPECS[tpl].total, 2);

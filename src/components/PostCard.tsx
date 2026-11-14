@@ -12,6 +12,7 @@ import type { Post, UserProfile } from '../types';
 import { confirmAsync, toast } from './Dialogs';
 import { HeartPop, tap, useBump } from './motion';
 import { Avatar, Pill, Row } from './ui';
+import { LikersSheet } from './LikersSheet';
 import { VideoPlayer } from './VideoPlayer';
 
 const VIS_ICON = { public: 'earth', followers: 'people', crew: 'people-circle', private: 'lock-closed' } as const;
@@ -20,6 +21,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likes, setLikes] = useState(post.likesCount);
+  const [showLikers, setShowLikers] = useState(false);
 
   useEffect(() => {
     setLikes(post.likesCount);
@@ -131,14 +133,16 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
       )}
       <Row style={{ marginTop: space.md, justifyContent: 'space-between' }}>
         <Row gap={18}>
-          <Pressable onPress={like} accessibilityLabel={liked ? 'Unlike' : 'Like'} testID={`like-${post.id}`}>
-            <Row gap={6}>
+          <Row gap={6}>
+            <Pressable onPress={like} accessibilityLabel={liked ? 'Unlike' : 'Like'} testID={`like-${post.id}`} hitSlop={8}>
               <Animated.View style={bump}>
                 <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? colors.pink : colors.textMuted} />
               </Animated.View>
+            </Pressable>
+            <Pressable onPress={() => setShowLikers(true)} accessibilityLabel={`See who liked (${likes})`} testID={`likes-count-${post.id}`} hitSlop={8}>
               <Text style={type.small}>{likes}</Text>
-            </Row>
-          </Pressable>
+            </Pressable>
+          </Row>
           <Pressable onPress={() => router.push(`/post/${post.id}`)} accessibilityLabel="Comments">
             <Row gap={6}>
               <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
@@ -161,6 +165,14 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
           <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color={saved ? colors.cyan : colors.textMuted} />
         </Pressable>
       </Row>
+      {likes > 0 && (
+        <Pressable onPress={() => setShowLikers(true)} testID={`liked-by-${post.id}`} accessibilityRole="button" style={{ marginTop: 8 }}>
+          <Text style={[type.small, { fontWeight: '700' }]}>
+            ❤️ Liked by {likes} {likes === 1 ? 'person' : 'people'} · <Text style={{ color: colors.cyan }}>See who</Text>
+          </Text>
+        </Pressable>
+      )}
+      {showLikers && <LikersSheet postId={post.id} count={likes} visible onClose={() => setShowLikers(false)} />}
     </View>
   );
 }
