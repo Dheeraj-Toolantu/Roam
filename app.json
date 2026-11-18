@@ -66,6 +66,16 @@
           "photosPermission": "ROAM lets you add existing photos and videos to your journeys.",
           "cameraPermission": "ROAM uses the camera to capture travel moments."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "extraProguardRules": "-keep class * extends androidx.room.RoomDatabase { <init>(); }\n-keep class **_Impl { *; }\n-keep class androidx.work.** { *; }"
+          }
+        }
       ]
     ],
     "experiments": {
