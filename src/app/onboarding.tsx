@@ -10,7 +10,7 @@ import { Globe } from '@/components/maps';
 import { Appear, IconBadge, Pop, PressScale } from '@/components/motion';
 import { Button, Logo, Row } from '@/components/ui';
 import { ONBOARDING_KEY } from '@/lib/constants';
-import { colors, gradients, type, onDark } from '@/theme';
+import { colors, gradients, type } from '@/theme';
 
 const STICKERS = [
   ['🌴', '📸', '✈️'],
@@ -73,14 +73,14 @@ export default function Onboarding() {
           ))}
         </View>
         <Appear key={`title-${i}`}>
-          <Text style={[onDark.h1, { textAlign: 'center', marginBottom: 20 }]}>{s.title}</Text>
+          <Text style={[type.h1, { textAlign: 'center', marginBottom: 20 }]}>{s.title}</Text>
         </Appear>
         <View style={{ gap: 12, marginBottom: 28, alignSelf: 'center' }}>
           {s.points.map((p, k) => (
             <Appear key={`${i}-${p}`} index={k} delay={120}>
               <Row gap={12}>
                 <Ionicons name="checkmark-circle" size={22} color={colors.green} />
-                <Text style={onDark.body}>{p}</Text>
+                <Text style={type.body}>{p}</Text>
               </Row>
             </Appear>
           ))}
@@ -104,7 +104,7 @@ export default function Onboarding() {
             router.replace('/login');
           }}
           style={{ marginTop: 14, alignItems: 'center' }}>
-          <Text style={onDark.small}>
+          <Text style={type.small}>
             Already have an account? <Text style={{ color: colors.cyan, fontWeight: '700' }}>Login</Text>
           </Text>
         </Pressable>
