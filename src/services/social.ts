@@ -30,6 +30,7 @@ export interface NewPost {
   visibility: Visibility;
   mediaUrl?: string | null;
   mediaType?: 'image' | 'video' | null;
+  thumbUrl?: string | null;
   placeName?: string | null;
   city?: string | null;
   groupId?: string | null;
@@ -47,6 +48,7 @@ export async function createPost(me: UserProfile, p: NewPost): Promise<string> {
     text: p.text.trim(),
     mediaUrl: p.mediaUrl ?? null,
     mediaType: p.mediaType ?? null,
+    thumbUrl: p.thumbUrl ?? null,
     placeName: p.placeName ?? null,
     city: city?.name ?? p.city ?? null,
     cityId: city?.id ?? null,
@@ -60,6 +62,15 @@ export async function createPost(me: UserProfile, p: NewPost): Promise<string> {
     createdAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/**
+ * The travel feed shows finished trips, not every moment of a running one: a moment
+ * captured on a journey lives in that journey (live story → finished-journey page).
+ * Journey summaries (`story`) and ROAM Magic videos are feed posts; standalone moments too.
+ */
+export function isFeedPost(p: Pick<Post, 'journeyId' | 'kind'>): boolean {
+  return !p.journeyId || p.kind === 'story' || p.kind === 'video' || p.kind === 'achievement';
 }
 
 const byNewest = (a: Post, b: Post) => (b.createdAt?.toMillis() ?? Date.now()) - (a.createdAt?.toMillis() ?? Date.now());
@@ -84,7 +95,7 @@ export async function loadFeed(me: string, max = 40): Promise<Post[]> {
     if (r.status !== 'fulfilled') continue;
     r.value.forEach((d) => map.set(d.id, withId<Post>(d)));
   }
-  return [...map.values()].filter((p) => !blocked.includes(p.authorId)).sort(byNewest).slice(0, max);
+  return [...map.values()].filter((p) => !blocked.includes(p.authorId) && isFeedPost(p)).sort(byNewest).slice(0, max);
 }
 
 export async function loadUserPosts(viewer: string, authorId: string): Promise<Post[]> {
@@ -97,7 +108,7 @@ export async function loadUserPosts(viewer: string, authorId: string): Promise<P
   const res = await Promise.allSettled(qs.map((q) => q()));
   const out: Post[] = [];
   res.forEach((r) => r.status === 'fulfilled' && r.value.forEach((d) => out.push(withId<Post>(d))));
-  return out.sort(byNewest);
+  return out.filter(isFeedPost).sort(byNewest);
 }
 
 export async function loadCityPosts(cityId: string, max = 50): Promise<Post[]> {

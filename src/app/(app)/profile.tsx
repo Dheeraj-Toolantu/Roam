@@ -5,13 +5,14 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { confirmAsync, PostCard } from '@/components/PostCard';
 import { IconBadge, PressScale, type IconGradient } from '@/components/motion';
+import { goTab } from '@/components/BottomNav';
 import { Avatar, Button, Card, Empty, goBackOr, IconButton, Loading, Row, Screen, Segmented, Stat, type IconName } from '@/components/ui';
 import { passportStats } from '@/logic/achievements';
 import { signOut, useMe, useSession } from '@/lib/session';
 import { subscribeMyJourneys } from '@/services/journeys';
 import { subscribeNotifications } from '@/services/notifications';
 import { loadSavedPosts, loadUserPosts } from '@/services/social';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, shadows } from '@/theme';
 import type { AppNotification, Journey, Post } from '@/types';
 
 export default function Profile() {
@@ -43,7 +44,7 @@ export default function Profile() {
       <Row style={{ marginBottom: space.lg }}>
         <IconButton icon="chevron-back" accessibilityLabel="Back"onPress={() => goBackOr('/')} />
         <Text style={[type.h1, { flex: 1, marginLeft: 10 }]}>My Travel Passport</Text>
-        <IconButton icon="notifications-outline" badge={unread} accessibilityLabel="Notifications" onPress={() => router.push('/notifications')} />
+        <IconButton icon="notifications-outline" badge={unread} accessibilityLabel="Notifications" onPress={() => goTab('/notifications')} />
         <IconButton icon="settings-outline" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
       </Row>
 
@@ -74,7 +75,7 @@ export default function Profile() {
       <Row style={{ marginTop: space.lg, gap: space.sm }}>
         <Tile icon="book" label="Travel Passport" onPress={() => router.push('/passport')} testID="open-passport" />
         <Tile icon="create" label="Edit profile" onPress={() => router.push('/settings')} testID="open-settings" />
-        <Tile icon="notifications" label="Notifications" onPress={() => router.push('/notifications')} />
+        <Tile icon="notifications" label="Notifications" onPress={() => goTab('/notifications')} />
         {admin && <Tile icon="shield" label="Admin" onPress={() => router.push('/admin')} testID="open-admin" />}
       </Row>
 
@@ -118,7 +119,7 @@ function Tile({ icon, label, onPress, testID }: { icon: IconName; label: string;
   return (
     <PressScale onPress={onPress} style={styles.tile} accessibilityRole="button" accessibilityLabel={label} testID={testID} scaleTo={0.92}>
       <IconBadge icon={icon} gradient={TILE_GRADIENT[icon as string] ?? 'violet'} size={38} />
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{label}</Text>
+      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{label}</Text>
     </PressScale>
   );
 }
@@ -126,5 +127,5 @@ function Tile({ icon, label, onPress, testID }: { icon: IconName; label: string;
 const TILE_GRADIENT: Record<string, IconGradient> = {'business': 'ocean', 'people': 'sunset', 'map': 'mint', 'images': 'candy', 'book': 'violet', 'create': 'sky', 'notifications': 'gold', 'shield': 'fire'};
 
 const styles = StyleSheet.create({
-  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder },
+  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, ...shadows.soft },
 });

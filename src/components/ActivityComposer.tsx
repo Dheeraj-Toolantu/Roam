@@ -4,7 +4,6 @@ import { Pressable, Text, View } from 'react-native';
 
 import { nearestCity } from '../logic/journey';
 import { addActivity } from '../services/journeys';
-import { createPost } from '../services/social';
 import { tracker } from '../services/tracker';
 import { errorMessage } from '../services/util';
 import { colors, type } from '../theme';
@@ -12,12 +11,13 @@ import type { Journey, UserProfile, Visibility } from '../types';
 import { Button, Card, Chip, ErrorText, Field, Row } from './ui';
 
 /** Add a manual activity (place visited, review or note) to a journey timeline (BRD §6). */
-export function ActivityComposer({ journey, me, onDone }: { journey: Journey; me: UserProfile; onDone: () => void }) {
+export function ActivityComposer({ journey, onDone }: { journey: Journey; me?: UserProfile; onDone: () => void }) {
   const [kind, setKind] = useState<'place' | 'review' | 'note'>('place');
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [rating, setRating] = useState(4);
-  const [visibility, setVisibility] = useState<Visibility>('private');
+  // Moments follow the trip's own audience — no separate choice while travelling.
+  const visibility: Visibility = journey.visibility;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -39,18 +39,6 @@ export function ActivityComposer({ journey, me, onDone }: { journey: Journey; me
         lng: fix?.lng ?? null,
         visibility,
       });
-      if (visibility !== 'private') {
-        await createPost(me, {
-          text: kind === 'note' ? title.trim() : caption.trim() || `Visited ${title.trim()}`,
-          visibility,
-          placeName: kind === 'note' ? null : title.trim(),
-          city: city?.name ?? journey.cities[journey.cities.length - 1] ?? null,
-          journeyId: journey.id,
-          groupId: journey.groupId,
-          kind: kind === 'review' ? 'review' : 'moment',
-          rating: kind === 'review' ? rating : null,
-        });
-      }
       onDone();
     } catch (e) {
       setErr(errorMessage(e));
@@ -77,12 +65,7 @@ export function ActivityComposer({ journey, me, onDone }: { journey: Journey; me
           ))}
         </Row>
       )}
-      <Text style={[type.tiny, { marginBottom: 6 }]}>Visibility</Text>
-      <Row style={{ flexWrap: 'wrap', marginBottom: 10 }}>
-        {(['private', 'followers', ...(journey.groupId ? (['crew'] as const) : []), 'public'] as Visibility[]).map((v) => (
-          <Chip key={v} label={v[0].toUpperCase() + v.slice(1)} active={visibility === v} onPress={() => setVisibility(v)} />
-        ))}
-      </Row>
+      <Text style={[type.tiny, { marginBottom: 10 }]}>Shared with the same people as this trip. It reaches the travel feed when the trip ends.</Text>
       <ErrorText text={err} />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Button small variant="ghost" title="Cancel" onPress={onDone} style={{ flex: 1 }} />

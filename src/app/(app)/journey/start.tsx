@@ -5,15 +5,15 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { BackgroundLocationCard } from '@/components/BackgroundLocationCard';
-import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Row, Screen } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Loading, Row, Screen } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { subscribeMyGroups } from '@/services/crew';
 import { backgroundLocation } from '@/services/backgroundLocation';
-import { getJourney, startJourney } from '@/services/journeys';
+import { getActiveJourney, getJourney, startJourney } from '@/services/journeys';
 import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
-import { colors, gradients, radius, type } from '@/theme';
+import { colors, gradients, radius, type, onDark } from '@/theme';
 import type { Group, Visibility } from '@/types';
 
 const VIS: { id: Visibility; label: string; icon: 'lock-closed' | 'people' | 'people-circle' | 'earth' }[] = [
@@ -34,6 +34,25 @@ export default function StartJourney() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const here = useLiveLocation({ detect: true });
+  // A trip is already running → no solo/group questions: go straight to adding to it.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    getActiveJourney(me.uid)
+      .then((j) => {
+        if (!alive) return;
+        if (j) {
+          // Capture is a tab: close this page and switch tab (don't stack a second copy of the tabs).
+          if (router.canDismiss()) router.dismissAll();
+          router.navigate(`/capture?journeyId=${j.id}`);
+        }
+        else setChecking(false);
+      })
+      .catch(() => alive && setChecking(false));
+    return () => {
+      alive = false;
+    };
+  }, [me.uid]);
 
   useEffect(() => subscribeMyGroups(me.uid, setGroups), [me.uid]);
   useEffect(() => {
@@ -68,11 +87,19 @@ export default function StartJourney() {
     }
   };
 
+  if (checking)
+    return (
+      <Screen>
+        <Header title="Start Your Journey" />
+        <Loading />
+      </Screen>
+    );
+
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Start Your Journey" />
-      <LinearGradient colors={['#1E1B4B', '#3B0764']} style={{ borderRadius: radius.lg, padding: 18, marginBottom: 18 }}>
-        <Text style={[type.small, { color: '#DDD6FE', lineHeight: 20 }]}>
+      <LinearGradient colors={['#1B1838', '#3F3774']} style={{ borderRadius: radius.lg, padding: 18, marginBottom: 18 }}>
+        <Text style={[onDark.small, { color: '#ffffffe6', lineHeight: 20 }]}>
           ROAM will automatically track your locations, activities, photos and videos and create a cinematic story. Tracking is always visible
           and you can pause it any time.
         </Text>
@@ -121,7 +148,7 @@ export default function StartJourney() {
       <Text style={[type.small, { fontWeight: '600', marginBottom: 8 }]}>Who can see this journey?</Text>
       <Row style={{ flexWrap: 'wrap', marginBottom: 8 }}>
         {VIS.filter((v) => v.id !== 'crew' || kind === 'group').map((v) => (
-          <Chip key={v.id} label={v.label} icon={v.icon} active={visibility === v.id} onPress={() => setVisibility(v.id)} />
+          <Chip key={v.id} testID={`start-vis-${v.id}`} label={v.label} icon={v.icon} active={visibility === v.id} onPress={() => setVisibility(v.id)} />
         ))}
       </Row>
       <BackgroundLocationCard />

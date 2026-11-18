@@ -69,7 +69,7 @@ export function ActivityTimeline({ items, onPress }: { items: Activity[]; onPres
                     <Image source={{ uri: a.mediaUrl }} style={{ width: '100%', height: 160, borderRadius: radius.md, marginTop: 8 }} contentFit="cover" />
                   )}
                   {!!a.mediaUrl && a.type === 'video' && (
-                    <VideoPlayer uri={a.mediaUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`activity-video-${a.id}`} />
+                    <VideoPlayer uri={a.mediaUrl} poster={a.thumbUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`activity-video-${a.id}`} />
                   )}
                   {a.visibility !== 'private' && (
                     <Row gap={4} style={{ marginTop: 4 }}>

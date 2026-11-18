@@ -66,12 +66,12 @@ async function makeSong() {
 }
 
 /** Asserts a <video> loads its media (≈6 s clip) and its playhead advances when played. */
-async function expectPlayable(page, selector, where) {
+async function expectPlayable(page, selector, where, [minS, maxS] = [5, 7]) {
   const v = page.locator(selector).first();
   await v.waitFor({ state: 'attached', timeout: 20_000 });
   await page.waitForFunction((el) => el && el.readyState >= 1 && Number.isFinite(el.duration), await v.elementHandle(), { timeout: 20_000 });
   const dur = await v.evaluate((el) => el.duration);
-  if (dur < 5 || dur > 7) throw new Error(`${where}: unexpected video duration ${dur}`);
+  if (dur < minS || dur > maxS) throw new Error(`${where}: unexpected video duration ${dur}`);
   if (!(await v.evaluate((el) => el.controls))) throw new Error(`${where}: video has no playback controls`);
   await v.evaluate((el) => { el.muted = true; return el.play(); });
   await page.waitForFunction((el) => el.currentTime > 0.3, await v.elementHandle(), { timeout: 15_000 });
@@ -211,24 +211,26 @@ try {
 
   await step('Bottom tab bar: tapping each tab navigates (real touch taps)', async () => {
     await a.goto(BASE + '/');
-    await a.getByTestId('tab-explore').first().waitFor();
+    await a.getByTestId('tab-alerts').first().waitFor();
     const errorsBefore = consoleErrors.filter((e) => e.includes('pageerror')).length;
-    // Footer holds exactly Home, Explore, +, Journeys, Crew (Profile opens from the Home avatar).
+    // Footer holds exactly Home, Alerts (notifications), +, Journeys, Crew (Explore opens from Home's search, Profile from the avatar).
     const tabIds = await a.locator('[data-testid^="tab-"]').evaluateAll((els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.testid));
-    if (tabIds.join(',') !== 'tab-index,tab-explore,tab-capture,tab-journeys,tab-crew') throw new Error(`unexpected footer tabs: ${tabIds}`);
+    if (tabIds.join(',') !== 'tab-home,tab-alerts,tab-capture,tab-journeys,tab-crew') throw new Error(`unexpected footer tabs: ${tabIds}`);
     await a.getByTestId('open-profile').filter({ visible: true }).first().tap();
     await a.waitForURL((u) => new URL(u).pathname === '/profile', { timeout: 10_000 });
     await a.getByTestId('profile-name').filter({ visible: true }).first().waitFor();
+    // the footer stays on pushed pages too
+    await a.getByTestId('bottom-nav').filter({ visible: true }).first().waitFor();
     await a.getByLabel('Back', { exact: true }).filter({ visible: true }).first().tap();
     await a.waitForURL((u) => new URL(u).pathname === '/', { timeout: 10_000 });
-    for (const [tab, path] of [['explore', '/explore'], ['journeys', '/journeys'], ['crew', '/crew'], ['index', '/'], ['capture', '/capture']]) {
+    for (const [tab, path] of [['alerts', '/notifications'], ['journeys', '/journeys'], ['crew', '/crew'], ['home', '/'], ['capture', '/capture']]) {
       await a.getByTestId(`tab-${tab}`).filter({ visible: true }).first().tap();
       await a.waitForURL((u) => new URL(u).pathname === path, { timeout: 10_000 }).catch(() => {
         throw new Error(`tab-${tab} did not navigate to ${path} (at ${a.url()})`);
       });
     }
     if (consoleErrors.filter((e) => e.includes('pageerror')).length > errorsBefore) throw new Error('page error while tapping tabs');
-    await a.getByTestId('tab-index').filter({ visible: true }).first().tap();
+    await a.getByTestId('tab-home').filter({ visible: true }).first().tap();
   });
 
   await step('Login/logout persists account', async () => {
@@ -253,8 +255,13 @@ try {
     await tid(b, 'vis-public').filter({ visible: true }).first().click();
     await tid(b, 'capture-save').filter({ visible: true }).first().click();
     await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
-    // The uploaded clip must actually play from Cloud Storage in the feed.
+    // The feed shows the uploaded thumbnail first; tapping it plays the clip from Cloud Storage.
     await b.goto(BASE + '/');
+    const play = b.locator('[data-testid^="video-"][data-testid$="-play"]').filter({ visible: true }).first();
+    await play.waitFor({ timeout: 20_000 });
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid$="-play"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await shot(b, '04c-video-thumbnail');
+    await play.click();
     await expectPlayable(b, '[data-testid^="video-"] video', 'feed post');
   });
 
@@ -295,9 +302,11 @@ try {
     await a.waitForFunction(() => /Starting from .*Goa/.test(document.querySelector('[data-testid="start-location"]')?.textContent ?? ''), null, { timeout: 15_000 });
     await tid(a, 'bg-unsupported').filter({ visible: true }).first().waitFor(); // web: explains background needs the mobile app
     await tid(a, 'journey-title').fill('Goa Trip 2026');
+    await tid(a, 'start-vis-public').click();
     await shot(a, '05-start-journey');
     await tid(a, 'start-journey').click();
-    await text(a, 'Recording');
+    await tid(a, 'trip-status').filter({ visible: true }).first().waitFor(); // animated "Travelling" badge
+    await text(a, 'Travelling');
     await text(a, 'Recording while ROAM is open.');
     await a.locator('[data-testid="journey-map"] [data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
     // Simulate a ride south along the coast from Baga: ~150 m per fix every ~0.7 s.
@@ -328,7 +337,9 @@ try {
     await tid(a, 'use-current-place').filter({ visible: true }).first().waitFor();
     await tid(a, 'capture-caption').filter({ visible: true }).first().fill('Sunset at Baga Beach 🌅');
     await tid(a, 'capture-place').filter({ visible: true }).first().fill('Baga Beach');
-    await tid(a, 'vis-public').filter({ visible: true }).first().click();
+    // A trip is running: no audience / crew questions, the moment goes into the trip.
+    await tid(a, 'capture-trip').filter({ visible: true }).first().waitFor();
+    if (await tid(a, 'vis-public').filter({ visible: true }).count()) throw new Error('capture asked for visibility during a running trip');
     await tid(a, 'capture-save').filter({ visible: true }).first().click();
     await a.waitForURL(/journey\//, { timeout: 30_000 });
     await text(a, 'Baga Beach');
@@ -360,6 +371,25 @@ try {
     await text(a, 'Completed');
     await tid(a, 'make-magic').filter({ visible: true }).first().waitFor();
     await shot(a, '07-journey-completed');
+  });
+
+  await step('Only the finished trip reaches the feed; it opens step by step with photo and playable video', async () => {
+    await b.goto(BASE + '/');
+    const card = b.locator('[data-testid^="journey-story-"]').filter({ hasText: 'Goa Trip 2026' }).filter({ visible: true }).first();
+    await card.waitFor({ timeout: 20_000 });
+    // the moments of the trip are not separate feed posts
+    if (await b.getByText('Jet ski at Calangute 🌊').filter({ visible: true }).count()) throw new Error('trip moment was posted to the feed on its own');
+    await card.click();
+    await b.waitForURL(/\/travel\//);
+    await tid(b, 'journey-sequence').filter({ visible: true }).first().waitFor({ timeout: 20_000 });
+    await text(b, 'Sunset at Baga Beach 🌅');
+    await text(b, 'Jet ski at Calangute 🌊');
+    const play = b.locator('[data-testid^="step-video-"][data-testid$="-play"]').filter({ visible: true }).first();
+    await play.scrollIntoViewIfNeeded();
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid^="step-video-"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await shot(b, '07b-travel-story-video-thumb');
+    await play.click();
+    await expectPlayable(b, '[data-testid^="step-video-"] video', 'trip video');
   });
 
   await step('AC-006 ROAM Magic: cinematic video plays all scenes and can be saved', async () => {
@@ -437,6 +467,21 @@ try {
     await shot(a, '09b-story-video-ready');
     const [dl] = await Promise.all([a.waitForEvent('download'), tid(a, 'download-story').filter({ visible: true }).first().click()]);
     if (!/^roam-goa-trip-2026\.(mp4|webm)$/.test(dl.suggestedFilename())) throw new Error(`bad file name ${dl.suggestedFilename()}`);
+  });
+
+  await step('ROAM Magic story video posted to the feed plays for followers (with thumbnail)', async () => {
+    await tid(a, 'post-story-video').filter({ visible: true }).first().click();
+    await text(a, 'Posted to the feed ✓', { timeout: 120_000 });
+    await b.goto(BASE + '/');
+    const card = b.locator('[data-testid^="post-"]').filter({ hasText: 'my ROAM Magic video' }).filter({ visible: true }).first();
+    await card.waitFor({ timeout: 20_000 });
+    const play = card.locator('[data-testid$="-play"]').first();
+    await play.waitFor();
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid$="-play"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await card.scrollIntoViewIfNeeded();
+    await shot(b, '09d-magic-video-in-feed');
+    await play.click();
+    await expectPlayable(b, '[data-testid^="post-"]:has-text("my ROAM Magic video") video', 'Magic video in feed', [27, 33]);
   });
 
   await step('Story styles + my own music: 15 s Polaroid story with a song uploaded from the device', async () => {
@@ -590,8 +635,8 @@ try {
 
   await step('AC-007 Social: friend sees public post in feed, likes it; author is notified', async () => {
     await b.goto(BASE + '/');
-    await text(b, 'Sunset at Baga Beach');
-    const like = b.locator('[data-testid^="like-"]').filter({ visible: true }).first();
+    await text(b, 'Goa Trip 2026');
+    const like = b.locator('[data-testid^="post-"]:has([data-testid^="journey-story-"]) [data-testid^="like-"]').filter({ visible: true }).first();
     await like.click();
     await b.waitForTimeout(800);
     await shot(b, '14-feed');
@@ -627,7 +672,7 @@ try {
     await a.getByText('Live World').first().click();
     await tid(a, 'live-total').waitFor();
     await a.goto(BASE + '/city/goa');
-    await text(a, 'Sunset at Baga Beach');
+    await text(a, 'Goa Trip 2026');
     await a.goto(BASE + '/memory-map');
     await text(a, 'Goa');
   });

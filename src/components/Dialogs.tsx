@@ -89,7 +89,7 @@ export function DialogHost() {
   return (
     <>
       <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => answer(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(3,6,20,0.72)', alignItems: 'center', justifyContent: 'center', padding: 24 }} onPress={() => answer(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(17,15,38,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 }} onPress={() => answer(false)}>
           {confirm && (
             <Animated.View entering={ZoomIn.springify().damping(16)} style={{ width: '100%', maxWidth: 420 }}>
               <Pressable

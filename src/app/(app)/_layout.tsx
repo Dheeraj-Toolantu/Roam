@@ -3,6 +3,7 @@ import { Redirect, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { BottomNav } from '@/components/BottomNav';
 import { Splash } from '@/components/Splash';
 import { Button, Logo } from '@/components/ui';
 import { ONBOARDING_KEY } from '@/lib/constants';
@@ -40,5 +41,16 @@ export default function AppLayout() {
   }
   if (!profile.onboarded) return <Redirect href="/profile-setup" />;
 
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }} />;
+  // The footer sits under the navigator (not floating over it), so it is on every page
+  // and never covers content.
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }}>
+          <Stack.Screen name="stories" options={{ animation: 'fade', presentation: 'fullScreenModal' }} />
+        </Stack>
+      </View>
+      <BottomNav />
+    </View>
+  );
 }

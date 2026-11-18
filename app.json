@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/roam-icon.png",
     "scheme": "roam",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "app.roam.mobile",
       "supportsTablet": false,
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0A0F2C",
+        "backgroundColor": "#F8FAFC",
         "foregroundImage": "./assets/images/roam-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -45,7 +45,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A0F2C",
+          "backgroundColor": "#F8FAFC",
           "image": "./assets/images/roam-splash.png",
           "imageWidth": 120
         }
@@ -72,6 +72,6 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-    "backgroundColor": "#0A0F2C"
+    "backgroundColor": "#F8FAFC"
   }
 }

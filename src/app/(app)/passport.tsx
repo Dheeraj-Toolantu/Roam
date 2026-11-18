@@ -14,7 +14,7 @@ import { useMe } from '@/lib/session';
 import { subscribeMyJourneys } from '@/services/journeys';
 import { createPost } from '@/services/social';
 import { errorMessage } from '@/services/util';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, onDark } from '@/theme';
 import type { Journey } from '@/types';
 
 const FLAGS: Record<string, string> = {
@@ -67,12 +67,12 @@ export default function PassportScreen() {
   return (
     <Screen>
       <Header title="Travel Passport" subtitle="Profile & achievements" />
-      <LinearGradient colors={['#312E81', '#6D28D9', '#0E7490']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
+      <LinearGradient colors={['#1B1838', '#3F3774', '#E11D74']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
         <Row style={{ gap: space.lg }}>
           <Avatar name={me.displayName} uri={me.photoURL} size={64} ring />
           <View style={{ flex: 1 }}>
-            <Text style={type.tiny}>ROAM PASSPORT</Text>
-            <Text style={type.h2}>{me.displayName}</Text>
+            <Text style={onDark.tiny}>ROAM PASSPORT</Text>
+            <Text style={onDark.h2}>{me.displayName}</Text>
             <Text style={{ color: '#ffffffcc' }}>{stats.countries.length > 1 ? 'Global Traveller' : 'Explorer'}</Text>
           </View>
           <Ionicons name="airplane" size={28} color="#ffffffaa" />
@@ -106,7 +106,7 @@ export default function PassportScreen() {
           {stats.countries.map((c) => (
             <View key={c} style={styles.stamp}>
               <Text style={{ fontSize: 20 }}>{FLAGS[countryCodes[c]] ?? '🌍'}</Text>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>{c}</Text>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{c}</Text>
             </View>
           ))}
         </Row>
@@ -119,7 +119,7 @@ export default function PassportScreen() {
         <Card style={[{ marginBottom: space.sm }, !a.unlocked && { opacity: 0.6 }]} testID={`passport-achievement-${a.id}`}>
           <Row style={{ gap: space.md }}>
             <Pop delay={150 + i * 70}>
-              <LinearGradient colors={a.unlocked ? a.colors : ['#334155', '#1E293B']} style={[styles.badge, a.unlocked && { shadowColor: a.colors[0], shadowOpacity: 0.7, shadowRadius: 14, elevation: 6 }]}>
+              <LinearGradient colors={a.unlocked ? a.colors : ['#D4D2EC', '#AEAAD9']} style={[styles.badge, a.unlocked && { shadowColor: a.colors[0], shadowOpacity: 0.7, shadowRadius: 14, elevation: 6 }]}>
                 <Ionicons name={(a.unlocked ? a.icon : 'lock-closed') as never} size={22} color="#fff" />
               </LinearGradient>
             </Pop>

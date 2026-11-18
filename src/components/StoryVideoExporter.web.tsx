@@ -32,11 +32,16 @@ export function StoryVideoExporter({
   track,
   autoFocus,
   onCreated,
+  onPost,
+  postLabel = 'Post video to my feed',
 }: {
   data: StoryData;
   track: TrackId;
   autoFocus?: boolean;
   onCreated?: (r: StoryVideoResult, template: StoryTemplate) => void;
+  /** Upload the rendered video and post it (feed / crew). Reports upload progress 0–100. */
+  onPost?: (r: StoryVideoResult, onProgress: (pct: number) => void) => Promise<void>;
+  postLabel?: string;
 }) {
   const [template, setTemplate] = useState<StoryTemplate>('reel');
   const [style, setStyle] = useState<StoryStyle>('classic');
@@ -46,6 +51,8 @@ export function StoryVideoExporter({
   const [result, setResult] = useState<StoryVideoResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [posting, setPosting] = useState<number | null>(null);
+  const [posted, setPosted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const supported = canExportStoryVideo();
 
@@ -73,12 +80,28 @@ export function StoryVideoExporter({
       });
       if (result) URL.revokeObjectURL(result.url);
       setResult(r);
+      setPosted(false);
       tap('success');
       onCreated?.(r, template);
     } catch (e) {
       setErr((e as Error).message || 'Could not create the video.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const post = async () => {
+    if (!result || !onPost) return;
+    setErr(null);
+    setPosting(0);
+    try {
+      await onPost(result, setPosting);
+      setPosted(true);
+      setInfo('Posted! Your story video now plays in the travel feed.');
+    } catch (e) {
+      setErr((e as Error).message || 'Could not post the video.');
+    } finally {
+      setPosting(null);
     }
   };
 
@@ -172,7 +195,21 @@ export function StoryVideoExporter({
                 : ' ✓'}
             </Text>
           )}
-          <Button testID="share-story" title={canShareFiles(result) ? 'Share to WhatsApp, Facebook…' : 'Download & share'} icon="share-social" variant="primary" onPress={share} />
+          {onPost && (
+            <View style={{ gap: 6 }}>
+              <Button
+                testID="post-story-video"
+                title={posted ? 'Posted to the feed ✓' : posting != null ? `Uploading… ${Math.round(posting)}%` : postLabel}
+                icon={posted ? 'checkmark-circle' : 'paper-plane'}
+                variant="primary"
+                onPress={post}
+                loading={posting != null}
+                disabled={posted}
+              />
+              {posting != null && <ProgressBar pct={posting} />}
+            </View>
+          )}
+          <Button testID="share-story" title={canShareFiles(result) ? 'Share to WhatsApp, Facebook…' : 'Download & share'} icon="share-social" variant={onPost ? 'secondary' : 'primary'} onPress={share} />
           <Row>
             <Button
               small
@@ -214,6 +251,7 @@ export function StoryVideoExporter({
               onPress={() => {
                 URL.revokeObjectURL(result.url);
                 setResult(null);
+                setPosted(false);
               }}
             />
           </Row>

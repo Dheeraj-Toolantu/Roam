@@ -118,6 +118,23 @@ describe('journeys & location privacy (BRD §5.4, BR-006, BR-014)', () => {
     await assertSucceeds(getDocs(query(collection(as('bob'), 'journeys'), where('groupId', '==', 'g1'), where('visibility', '==', 'crew'))));
   });
 
+  it('trip moments reach exactly the trip audience: public, followers, crew; private stays owner-only', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'journeys/fol'), { ownerId: 'alice', status: 'active', type: 'solo', visibility: 'followers' });
+      await setDoc(doc(db, 'users/alice/followers/fan'), { since: 1 });
+      await setDoc(doc(db, 'journeys/fol/activities/a1'), { type: 'video', visibility: 'followers', mediaUrl: 'x', thumbUrl: 'y', createdAt: 1 });
+      await setDoc(doc(db, 'journeys/crew/activities/c1'), { type: 'photo', visibility: 'crew', createdAt: 1 });
+      await setDoc(doc(db, 'journeys/priv/activities/p1'), { type: 'photo', visibility: 'private', createdAt: 1 });
+    });
+    const acts = (who: string, jid: string, vis: string) => getDocs(query(collection(as(who), 'journeys', jid, 'activities'), where('visibility', '==', vis)));
+    await assertSucceeds(acts('fan', 'fol', 'followers'));
+    await assertFails(acts('eve', 'fol', 'followers'));
+    await assertSucceeds(acts('bob', 'crew', 'crew'));
+    await assertFails(acts('eve', 'crew', 'crew'));
+    await assertFails(getDoc(doc(as('fan'), 'journeys/priv/activities/p1')));
+    await assertSucceeds(getDoc(doc(as('alice'), 'journeys/priv/activities/p1')));
+  });
+
   it('a user can only create journeys for themselves', async () => {
     const j = { ownerId: 'bob', status: 'active', type: 'solo', visibility: 'private' };
     await assertSucceeds(setDoc(doc(as('bob'), 'journeys/j2'), j));

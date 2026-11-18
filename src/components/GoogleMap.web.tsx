@@ -42,7 +42,7 @@ export function GoogleMap(props: GoogleMapProps) {
           zoomControl: true,
           fullscreenControl: false,
           gestureHandling: 'greedy',
-          backgroundColor: '#0D1438',
+          backgroundColor: '#EEF0F7',
         });
         setStatus('ready');
       })
@@ -147,7 +147,7 @@ export function GoogleMap(props: GoogleMapProps) {
   }
 
   return (
-    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0D1438' }, style]} testID={testID}>
+    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#EEF0F7' }, style]} testID={testID}>
       <div ref={el} data-testid="google-map" data-has-key={GOOGLE_MAPS_API_KEY ? '1' : '0'} style={{ width: '100%', height: '100%' }} />
       {status === 'loading' && (
         <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' } as never}>

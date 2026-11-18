@@ -125,14 +125,14 @@ export function splitLayoutStyle(style: StyleProp<ViewStyle>) {
 // ---------------- icons ----------------
 
 export const ICON_GRADIENTS = {
-  violet: ['#A855F7', '#6366F1'],
-  ocean: ['#22D3EE', '#3B82F6'],
-  sunset: ['#F97316', '#EC4899'],
-  mint: ['#34D399', '#06B6D4'],
+  violet: ['#FF6F3C', '#E11D74'],
+  ocean: ['#3B82F6', '#6157A9'],
+  sunset: ['#FF6F3C', '#FE4A16'],
+  mint: ['#10B981', '#0EA5E9'],
   gold: ['#FBBF24', '#F97316'],
-  candy: ['#F472B6', '#A855F7'],
+  candy: ['#F472B6', '#E11D74'],
   fire: ['#EF4444', '#F59E0B'],
-  sky: ['#38BDF8', '#818CF8'],
+  sky: ['#38BDF8', '#6157A9'],
 } as const satisfies Record<string, readonly [string, string]>;
 export type IconGradient = keyof typeof ICON_GRADIENTS;
 

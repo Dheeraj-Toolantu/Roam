@@ -22,7 +22,7 @@ import {
   subscribeTimeline,
   subscribeTimelineComments,
 } from '@/services/crew';
-import { pickMedia, uploadMedia, type PickedMedia } from '@/services/media';
+import { pickMedia, uploadMoment, type PickedMedia } from '@/services/media';
 import { report } from '@/services/social';
 import { clockTime, errorMessage, timeAgo, tsToMs } from '@/services/util';
 import { colors, radius, space, type } from '@/theme';
@@ -75,7 +75,7 @@ export default function TripDashboard() {
         <IconButton icon="settings-outline" onPress={() => router.push(`/trip/${id}/settings`)} accessibilityLabel="Trip settings" />
       </Row>
 
-      <LinearGradient colors={[group.colors?.[0] ?? colors.orange, group.colors?.[1] ?? colors.pink, '#0A0F2C']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1.4 }} style={{ borderRadius: radius.lg, padding: 18 }}>
+      <LinearGradient colors={[group.colors?.[0] ?? colors.orange, group.colors?.[1] ?? colors.pink, '#1B1838']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1.4 }} style={{ borderRadius: radius.lg, padding: 18 }}>
         <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900' }} testID="trip-title">
           {group.name} {city?.emoji ?? ''}
         </Text>
@@ -94,7 +94,7 @@ export default function TripDashboard() {
           <Pressable key={t.label} onPress={t.onPress} style={{ width: '31.5%' }} testID={t.testID} accessibilityRole="button" accessibilityLabel={t.label}>
             <Card style={{ alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, gap: 6 }}>
               <IconBadge icon={t.icon} gradient={t.gradient} size={40} />
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t.label}</Text>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t.label}</Text>
             </Card>
           </Pressable>
         ))}
@@ -188,7 +188,7 @@ export default function TripDashboard() {
             {media.map((m) => (
               <View key={m.id} style={{ width: '32%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.card }}>
                 {m.type === 'video' ? (
-                  <VideoPlayer uri={m.mediaUrl!} compact style={{ flex: 1 }} testID={`moment-video-${m.id}`} />
+                  <VideoPlayer uri={m.mediaUrl!} poster={m.thumbUrl} compact style={{ flex: 1 }} testID={`moment-video-${m.id}`} />
                 ) : (
                   <Image source={{ uri: m.mediaUrl! }} style={{ flex: 1 }} contentFit="cover" />
                 )}
@@ -230,11 +230,12 @@ function MomentComposer({ groupId, memberIds, groupName, onDone }: { groupId: st
     if (!text.trim() && !media) return setErr('Write something or add a photo');
     setBusy(true);
     try {
-      const url = media ? await uploadMedia(me.uid, media) : null;
+      const up = media ? await uploadMoment(me.uid, media) : null;
+      const url = up?.url ?? null;
       await addTimelineItem(
         groupId,
         me,
-        { type: media ? (media.type === 'video' ? 'video' : 'photo') : place.trim() ? 'place' : 'note', text: text.trim() || `At ${place.trim()}`, mediaUrl: url, placeName: place.trim() || null },
+        { type: media ? (media.type === 'video' ? 'video' : 'photo') : place.trim() ? 'place' : 'note', text: text.trim() || `At ${place.trim()}`, mediaUrl: url, thumbUrl: up?.thumbUrl ?? null, placeName: place.trim() || null },
         { memberIds, groupName },
       );
       onDone();
@@ -293,7 +294,7 @@ function TimelineRow({ item, last, groupId, canDelete }: { item: TimelineItem; l
         {!!item.placeName && item.text !== `At ${item.placeName}` && <Text style={[type.small, { color: colors.text }]}>{item.text}</Text>}
         <Text style={type.tiny}>Shared by {item.authorId === me.uid ? 'you' : item.authorName}</Text>
         {!!item.mediaUrl && item.type === 'video' && (
-          <VideoPlayer uri={item.mediaUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`timeline-video-${item.id}`} />
+          <VideoPlayer uri={item.mediaUrl} poster={item.thumbUrl} style={{ width: '100%', height: 200, borderRadius: radius.md, marginTop: 8 }} testID={`timeline-video-${item.id}`} />
         )}
         {!!item.mediaUrl && item.type !== 'video' && (
           <Image source={{ uri: item.mediaUrl }} style={{ width: '100%', height: 170, borderRadius: radius.md, marginTop: 8 }} contentFit="cover" />
@@ -328,7 +329,7 @@ function TimelineRow({ item, last, groupId, canDelete }: { item: TimelineItem; l
           <View style={{ marginTop: 8, gap: 6 }}>
             {comments.map((c) => (
               <Text key={c.id} style={type.small}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{c.authorName} </Text>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>{c.authorName} </Text>
                 {c.text} <Text style={type.tiny}>· {timeAgo(c.createdAt)}</Text>
               </Text>
             ))}

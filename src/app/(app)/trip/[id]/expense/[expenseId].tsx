@@ -52,7 +52,7 @@ export default function ExpenseDetail() {
           <Row key={u} style={{ paddingVertical: 8 }}>
             <Avatar name={memberName(group, u)} size={30} />
             <Text style={[type.body, { flex: 1 }]}>{memberName(group, u, me.uid)}</Text>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{formatMoney(amt)}</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>{formatMoney(amt)}</Text>
           </Row>
         ))}
       </Card>

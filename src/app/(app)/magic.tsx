@@ -14,13 +14,15 @@ import { clearCustomMusic, getCustomMusic, pickCustomMusic, type CustomMusic } f
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { TRACKS, type TrackId } from '@/logic/musicScore';
-import { subscribeGroup, subscribeTimeline } from '@/services/crew';
+import { addTimelineItem, subscribeGroup, subscribeTimeline } from '@/services/crew';
 import { subscribeActivities, subscribeJourney } from '@/services/journeys';
 import { notifyMany } from '@/services/notifications';
+import { uploadStoryVideo } from '@/services/media';
 import { createPost } from '@/services/social';
+import type { StoryVideoResult } from '@/services/storyVideo';
 import { errorMessage, tsToMs } from '@/services/util';
 import { colors, type } from '@/theme';
-import type { Activity, Group, Journey, TimelineItem } from '@/types';
+import type { Activity, Group, Journey, TimelineItem, Visibility } from '@/types';
 
 
 /** ROAM MAGIC – personal (journeyId) or group (groupId) cinematic video. */
@@ -121,6 +123,37 @@ export default function Magic() {
 
   const isGroup = !!group;
   const canSave = isGroup || journey?.ownerId === me.uid;
+  const canPost = canSave;
+
+  /**
+   * Upload the rendered story video (and its thumbnail) and post it, so it actually plays
+   * in the feed. Personal trip → the trip's audience (a private trip goes to followers);
+   * crew trip → the crew.
+   */
+  const postStoryVideo = async (r: StoryVideoResult, onProgress: (pct: number) => void) => {
+    const { url, thumbUrl } = await uploadStoryVideo(me.uid, r, onProgress);
+    const visibility: Visibility = isGroup
+      ? 'crew'
+      : journey!.visibility !== 'private'
+        ? journey!.visibility
+        : me.defaultPostVisibility === 'private'
+          ? 'followers'
+          : me.defaultPostVisibility;
+    await createPost(me, {
+      text: `🎬 ${data.title} — my ROAM Magic video`,
+      visibility,
+      city: data.city?.name ?? null,
+      journeyId: journey?.id ?? null,
+      groupId: isGroup ? group!.id : (journey?.groupId ?? null),
+      mediaUrl: url,
+      mediaType: 'video',
+      thumbUrl,
+      kind: 'video',
+    });
+    // Crew members also find it on the crew timeline.
+    if (isGroup) await addTimelineItem(group!.id, me, { type: 'video', text: `🎬 ${data.title} — ROAM Magic video`, mediaUrl: url, thumbUrl }, { memberIds: group!.memberIds, groupName: group!.name });
+    toast(isGroup ? 'Posted to the crew' : 'Posted to your feed');
+  };
   const save = async () => {
     setErr(null);
     setSaving(true);
@@ -211,7 +244,16 @@ export default function Magic() {
           />
         </Row>
       )}
-      {storyData && <StoryVideoExporter data={storyData} track={music} autoFocus={fresh === '1'} onCreated={() => void (!savedId && canSave && save())} />}
+      {storyData && (
+        <StoryVideoExporter
+          data={storyData}
+          track={music}
+          autoFocus={fresh === '1'}
+          onCreated={() => void (!savedId && canSave && save())}
+          onPost={canPost ? postStoryVideo : undefined}
+          postLabel={isGroup ? 'Post video to the crew' : 'Post video to my feed'}
+        />
+      )}
       {isGroup && (
         <Card style={{ marginTop: 16 }}>
           <Text style={type.small}>
@@ -234,29 +276,6 @@ export default function Magic() {
             } catch {}
           }}
         />
-        {!isGroup && journey?.ownerId === me.uid && (
-          <Button
-            variant="ghost"
-            title="Post to my feed"
-            icon="paper-plane-outline"
-            onPress={async () => {
-              try {
-                await createPost(me, {
-                  text: `🎬 ${data.title} — my ROAM Magic video`,
-                  visibility: me.defaultPostVisibility === 'private' ? 'followers' : me.defaultPostVisibility,
-                  city: data.city?.name ?? null,
-                  journeyId: journey.id,
-                  mediaUrl: journey.coverUrl,
-                  mediaType: journey.coverUrl ? 'image' : null,
-                  kind: 'video',
-                });
-                toast('Posted to your feed');
-              } catch (e) {
-                setErr(errorMessage(e));
-              }
-            }}
-          />
-        )}
       </View>
       <View style={{ marginTop: 14 }}>
         <InfoText icon="shield-checkmark" text="Story videos are created on your device from your trip's photos and videos. Nothing is posted anywhere until you choose to share it." />

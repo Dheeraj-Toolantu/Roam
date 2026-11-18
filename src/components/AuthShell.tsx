@@ -58,6 +58,8 @@ function SocialBtn({ label, icon, color, onPress }: { label: string; icon: 'logo
       style={({ pressed }) => ({
         backgroundColor: '#fff',
         borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.cardBorder,
         height: 48,
         flexDirection: 'row',
         alignItems: 'center',

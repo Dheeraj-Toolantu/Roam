@@ -40,6 +40,7 @@ export default function NotificationsScreen() {
   return (
     <Screen>
       <Header
+        back={false}
         title="Notifications"
         subtitle={unread ? `${unread} unread` : 'All caught up'}
         right={unread ? <Button title="Mark all read" small variant="secondary" onPress={() => markAllRead(me.uid, visible)} testID="mark-all-read" /> : undefined}
@@ -78,7 +79,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: space.md, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder },
-  unread: { borderColor: colors.cyan + '66', backgroundColor: colors.cardAlt },
+  unread: { borderColor: '#FFC9AA', backgroundColor: colors.brandSoft },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cyan },
-  typeIcon: { position: 'absolute', right: -2, bottom: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg },
+  typeIcon: { position: 'absolute', right: -2, bottom: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
 });
