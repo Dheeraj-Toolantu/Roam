@@ -188,7 +188,7 @@ export async function setVideoExcluded(group: Group, uid: string, excluded: bool
 export async function addTimelineItem(
   groupId: string,
   me: Pick<UserProfile, 'uid' | 'displayName'>,
-  item: { type: TimelineItem['type']; text: string; mediaUrl?: string | null; placeName?: string | null },
+  item: { type: TimelineItem['type']; text: string; mediaUrl?: string | null; thumbUrl?: string | null; placeName?: string | null },
   notifyMembers?: { memberIds: string[]; groupName: string },
 ) {
   await addDoc(collection(db, 'groups', groupId, 'timeline'), {
@@ -197,6 +197,7 @@ export async function addTimelineItem(
     type: item.type,
     text: item.text,
     mediaUrl: item.mediaUrl ?? null,
+    thumbUrl: item.thumbUrl ?? null,
     placeName: item.placeName ?? null,
     commentsCount: 0,
     createdAt: serverTimestamp(),

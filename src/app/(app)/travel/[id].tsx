@@ -12,7 +12,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { subscribeJourney } from '@/services/journeys';
-import { loadJourneyMoments, type Moment } from '@/services/travelStories';
+import { loadJourneyMoments, myCrewIds, type Moment } from '@/services/travelStories';
 import { getProfile, isFollowing } from '@/services/users';
 import { colors, gradients, onDark, radius, shadows, space, type } from '@/theme';
 import type { Journey } from '@/types';
@@ -47,7 +47,7 @@ export default function TravelStoryScreen() {
     let alive = true;
     (async () => {
       const follows = j.ownerId === me.uid ? true : await isFollowing(me.uid, j.ownerId).catch(() => false);
-      const list = await loadJourneyMoments(j, me.uid, follows).catch((): Moment[] => []);
+      const list = await loadJourneyMoments(j, me.uid, follows, !!j.groupId && (await myCrewIds(me.uid)).includes(j.groupId)).catch((): Moment[] => []);
       if (alive) setMoments(list);
     })();
     return () => {
@@ -206,7 +206,7 @@ function Step({ m, n, first, last, newDay }: { m: Moment; n: number; first: bool
             </Row>
           )}
           {!!m.mediaUrl && m.mediaType === 'image' && <Image source={{ uri: m.mediaUrl }} style={styles.media} contentFit="cover" transition={200} />}
-          {!!m.mediaUrl && m.mediaType === 'video' && <VideoPlayer uri={m.mediaUrl} compact style={styles.media} />}
+          {!!m.mediaUrl && m.mediaType === 'video' && <VideoPlayer uri={m.mediaUrl} poster={m.thumbUrl} style={[styles.media, { aspectRatio: 9 / 16, maxHeight: 420 }]} testID={`step-video-${n}`} />}
           {!!m.caption && <Text style={[type.body, { marginTop: 8, lineHeight: 21, color: colors.ink700 }]}>{m.caption}</Text>}
         </View>
       </View>

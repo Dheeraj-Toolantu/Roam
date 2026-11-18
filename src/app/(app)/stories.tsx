@@ -12,7 +12,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { getJourney } from '@/services/journeys';
-import { loadJourneyMoments, type Moment } from '@/services/travelStories';
+import { loadJourneyMoments, myCrewIds, type Moment } from '@/services/travelStories';
 import { getProfile, isFollowing } from '@/services/users';
 import { timeAgo } from '@/services/util';
 import { colors, gradients } from '@/theme';
@@ -57,7 +57,7 @@ export default function StoriesScreen() {
         const j = await getJourney(id).catch(() => null);
         if (!j) return { id, v: null };
         const follows = j.ownerId === me.uid ? true : await isFollowing(me.uid, j.ownerId).catch(() => false);
-        const [moments, prof] = await Promise.all([loadJourneyMoments(j, me.uid, follows).catch((): Moment[] => []), getProfile(j.ownerId).catch(() => null)]);
+        const [moments, prof] = await Promise.all([loadJourneyMoments(j, me.uid, follows, !!j.groupId && (await myCrewIds(me.uid)).includes(j.groupId)).catch((): Moment[] => []), getProfile(j.ownerId).catch(() => null)]);
         return { id, v: { journey: j, moments, photo: prof?.photoURL ?? null } };
       })().then(({ id: k, v }) => setCache((c) => ({ ...c, [k]: v })));
     }
@@ -192,7 +192,7 @@ function Slide({ j, m }: { j: Journey; m: Moment }) {
   if (m.mediaUrl && m.mediaType === 'video') {
     return (
       <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
-        <VideoPlayer uri={m.mediaUrl} style={{ width: '100%', aspectRatio: 9 / 16, maxHeight: '100%' }} />
+        <VideoPlayer autoPlay uri={m.mediaUrl} poster={m.thumbUrl} style={{ width: '100%', aspectRatio: 9 / 16, maxHeight: '100%' }} testID="live-story-video" />
         <Caption m={m} />
       </View>
     );

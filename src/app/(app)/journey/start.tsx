@@ -5,11 +5,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { BackgroundLocationCard } from '@/components/BackgroundLocationCard';
-import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Row, Screen } from '@/components/ui';
+import { Button, Card, Chip, ErrorText, Field, Header, InfoText, Loading, Row, Screen } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { subscribeMyGroups } from '@/services/crew';
 import { backgroundLocation } from '@/services/backgroundLocation';
-import { getJourney, startJourney } from '@/services/journeys';
+import { getActiveJourney, getJourney, startJourney } from '@/services/journeys';
 import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
@@ -34,6 +34,21 @@ export default function StartJourney() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const here = useLiveLocation({ detect: true });
+  // A trip is already running → no solo/group questions: go straight to adding to it.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    getActiveJourney(me.uid)
+      .then((j) => {
+        if (!alive) return;
+        if (j) router.replace(`/capture?journeyId=${j.id}`);
+        else setChecking(false);
+      })
+      .catch(() => alive && setChecking(false));
+    return () => {
+      alive = false;
+    };
+  }, [me.uid]);
 
   useEffect(() => subscribeMyGroups(me.uid, setGroups), [me.uid]);
   useEffect(() => {
@@ -67,6 +82,14 @@ export default function StartJourney() {
       setBusy(false);
     }
   };
+
+  if (checking)
+    return (
+      <Screen>
+        <Header title="Start Your Journey" />
+        <Loading />
+      </Screen>
+    );
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -121,7 +144,7 @@ export default function StartJourney() {
       <Text style={[type.small, { fontWeight: '600', marginBottom: 8 }]}>Who can see this journey?</Text>
       <Row style={{ flexWrap: 'wrap', marginBottom: 8 }}>
         {VIS.filter((v) => v.id !== 'crew' || kind === 'group').map((v) => (
-          <Chip key={v.id} label={v.label} icon={v.icon} active={visibility === v.id} onPress={() => setVisibility(v.id)} />
+          <Chip key={v.id} testID={`start-vis-${v.id}`} label={v.label} icon={v.icon} active={visibility === v.id} onPress={() => setVisibility(v.id)} />
         ))}
       </Row>
       <BackgroundLocationCard />

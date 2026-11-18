@@ -9,6 +9,7 @@ import { pickFileWeb } from './filePicker';
 import { prepareImageForUpload } from './imagePrep';
 import { randomId } from './util';
 import { probeVideoDurationMs } from './videoProbe';
+import { makeVideoThumbnail } from './videoThumb';
 
 export interface PickedMedia {
   uri: string;
@@ -104,6 +105,20 @@ export async function uploadMedia(
     }
   }
   throw lastErr;
+}
+
+/**
+ * Upload a picked photo/video. Videos also get a JPEG thumbnail (best effort — a clip
+ * whose frame can't be decoded is still posted, it just shows a placeholder).
+ */
+export async function uploadMoment(uid: string, media: PickedMedia, onProgress?: (pct: number) => void): Promise<{ url: string; thumbUrl: string | null }> {
+  if (media.type !== 'video') return { url: await uploadMedia(uid, media, 'media', onProgress), thumbUrl: null };
+  const thumb = await makeVideoThumbnail(media.uri, media.durationMs);
+  const url = await uploadMedia(uid, media, 'media', (p) => onProgress?.(Math.min(95, p * 0.95)));
+  let thumbUrl: string | null = null;
+  if (thumb) thumbUrl = await uploadMedia(uid, { uri: thumb.uri, mimeType: thumb.mimeType, file: (thumb as { file?: Blob }).file }, 'media').catch(() => null);
+  onProgress?.(100);
+  return { url, thumbUrl };
 }
 
 /**

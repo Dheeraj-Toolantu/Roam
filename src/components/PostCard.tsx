@@ -165,7 +165,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
         </Pressable>
       )}
       {!journeyStory && !!post.mediaUrl && post.mediaType === 'video' && (
-        <VideoPlayer uri={post.mediaUrl} style={[styles.media, styles.video]} testID={`video-${post.id}`} />
+        <VideoPlayer uri={post.mediaUrl} poster={post.thumbUrl} style={[styles.media, styles.video]} testID={`video-${post.id}`} />
       )}
       <Row style={{ marginTop: space.md, justifyContent: 'space-between' }}>
         <Row gap={18}>

@@ -6,9 +6,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { LocationChip } from '@/components/LocationChip';
-import { Appear, IconBadge, LiveDot, PressScale, SkeletonCard, Wiggle } from '@/components/motion';
+import { Appear, IconBadge, PressScale, SkeletonCard, Wiggle } from '@/components/motion';
 import { PostCard } from '@/components/PostCard';
 import { StoryRow } from '@/components/StoryRow';
+import { TravellingBadge } from '@/components/Travelling';
 import { Avatar, Card, Empty, Field, QuickAction, Row, Screen, SectionTitle } from '@/components/ui';
 import { useMe } from '@/lib/session';
 import { formatDurationShort, activeDurationMs } from '@/logic/journey';
@@ -75,7 +76,7 @@ export default function Home() {
 
       <Appear delay={80}>
       <Row gap={8} style={{ marginTop: 18 }}>
-        <QuickAction testID="qa-start" icon="navigate" gradient="violet" label="Start Journey" colors={['#FE4A16', '#E11D74']} onPress={() => router.push(current ? `/journey/${current.id}` : '/journey/start')} />
+        <QuickAction testID="qa-start" icon="navigate" gradient="violet" label={current ? 'Add to Trip' : 'Start Journey'} colors={['#FE4A16', '#E11D74']} onPress={() => router.push(current ? `/capture?journeyId=${current.id}` : '/journey/start')} />
         <QuickAction testID="qa-plan" icon="sparkles" gradient="ocean" label="Plan Trip" colors={['#3B82F6', '#6157A9']} onPress={() => router.push('/planner')} />
         <QuickAction testID="qa-crew" icon="people" gradient="sunset" label="Join Crew" colors={['#FF6F3C', '#E11D74']} onPress={() => router.push('/crew')} />
         <QuickAction testID="qa-live-map" icon="map" gradient="mint" label="Live Map" colors={['#22C55E', '#0EA5E9']} onPress={() => router.push('/live-map')} />
@@ -91,12 +92,7 @@ export default function Home() {
               <Text style={onDark.h2} numberOfLines={1}>
                 {current.cities[0] ?? current.title}
               </Text>
-              <Row gap={6} style={{ backgroundColor: '#ffffff26', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 }}>
-                {current.status === 'paused' ? <Ionicons name="pause" size={11} color={colors.yellow} /> : <LiveDot />}
-                <Text style={{ color: current.status === 'paused' ? '#FDE68A' : '#86EFAC', fontWeight: '800', fontSize: 12 }}>
-                  {current.status === 'paused' ? 'Paused' : 'Recording'}
-                </Text>
-              </Row>
+              <TravellingBadge paused={current.status === 'paused'} testID="home-trip-status" />
             </Row>
             <Text style={[onDark.small, { marginTop: 4 }]}>
               {current.title} · {formatDurationShort(activeDurationMs(current))}

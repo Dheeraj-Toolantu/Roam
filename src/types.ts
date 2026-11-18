@@ -58,6 +58,8 @@ export interface Activity {
   title: string;
   caption: string;
   mediaUrl: string | null;
+  /** Still frame for videos. */
+  thumbUrl?: string | null;
   placeName: string | null;
   city: string | null;
   rating: number | null;
@@ -75,6 +77,8 @@ export interface Post {
   text: string;
   mediaUrl: string | null;
   mediaType: 'image' | 'video' | null;
+  /** Still frame for videos. */
+  thumbUrl?: string | null;
   placeName: string | null;
   city: string | null;
   cityId: string | null;
@@ -137,6 +141,7 @@ export interface TimelineItem {
   type: 'photo' | 'video' | 'place' | 'review' | 'note' | 'expense' | 'join';
   text: string;
   mediaUrl: string | null;
+  thumbUrl?: string | null;
   placeName: string | null;
   commentsCount: number;
   createdAt: Timestamp | null;

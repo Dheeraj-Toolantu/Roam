@@ -33,7 +33,7 @@ function lastActivityAt(j: Journey) {
 
 /** Journeys in progress that I'm allowed to see, mine first, then most recently active. */
 export async function loadLiveStories(me: string): Promise<LiveStory[]> {
-  const [following, blocked] = await Promise.all([getFollowingIds(me).catch((): string[] => []), getBlockedIds(me).catch((): string[] => [])]);
+  const [following, blocked, crews] = await Promise.all([getFollowingIds(me).catch((): string[] => []), getBlockedIds(me).catch((): string[] => []), myCrewIds(me)]);
   const journeys = collection(db, 'journeys');
   const qs = [
     query(journeys, where('ownerId', '==', me), where('status', 'in', [...LIVE]), limit(3)),
@@ -41,6 +41,8 @@ export async function loadLiveStories(me: string): Promise<LiveStory[]> {
     ...following
       .slice(0, 20)
       .map((uid) => query(journeys, where('ownerId', '==', uid), where('visibility', '==', 'followers'), where('status', 'in', [...LIVE]), limit(2))),
+    // Crew trips of my crews
+    ...crews.slice(0, 10).map((gid) => query(journeys, where('groupId', '==', gid), where('visibility', '==', 'crew'), where('status', 'in', [...LIVE]), limit(5))),
   ];
   const res = await Promise.allSettled(qs.map((q) => getDocs(q)));
   const map = new Map<string, Journey>();
@@ -59,6 +61,16 @@ export async function loadLiveStories(me: string): Promise<LiveStory[]> {
   return owners.map((journey, i) => ({ journey, ownerPhoto: photos[i], mine: journey.ownerId === me }));
 }
 
+/** Ids of the crews I'm a member of (empty if it can't be read). */
+export async function myCrewIds(uid: string): Promise<string[]> {
+  try {
+    const s = await getDocs(query(collection(db, 'groups'), where('memberIds', 'array-contains', uid), limit(30)));
+    return s.docs.map((d) => d.id);
+  } catch {
+    return [];
+  }
+}
+
 export type MomentKind = 'start' | 'photo' | 'video' | 'place' | 'review' | 'note' | 'end';
 
 export interface Moment {
@@ -68,6 +80,7 @@ export interface Moment {
   caption: string;
   mediaUrl: string | null;
   mediaType: 'image' | 'video' | null;
+  thumbUrl: string | null;
   placeName: string | null;
   city: string | null;
   rating: number | null;
@@ -82,6 +95,7 @@ function fromActivity(a: Activity): Moment {
     caption: a.caption,
     mediaUrl: a.mediaUrl,
     mediaType: a.mediaUrl ? (a.type === 'video' ? 'video' : 'image') : null,
+    thumbUrl: a.thumbUrl ?? null,
     placeName: a.placeName,
     city: a.city,
     rating: a.rating,
@@ -98,6 +112,7 @@ function fromPost(p: Post): Moment {
     caption: kind === 'note' ? '' : p.text,
     mediaUrl: p.mediaUrl,
     mediaType: p.mediaType,
+    thumbUrl: p.thumbUrl ?? null,
     placeName: p.placeName,
     city: p.city,
     rating: p.rating,
@@ -110,22 +125,30 @@ function fromPost(p: Post): Moment {
  * reviews, notes → end. Merges the journey's activities with posts shared from it,
  * de-duplicating the same moment that exists in both.
  */
-export async function loadJourneyMoments(j: Journey, viewer: string, viewerFollowsOwner: boolean): Promise<Moment[]> {
+export async function loadJourneyMoments(j: Journey, viewer: string, viewerFollowsOwner: boolean, viewerInCrew = false): Promise<Moment[]> {
   const mine = j.ownerId === viewer;
   const acts = collection(db, 'journeys', j.id, 'activities');
   const posts = collection(db, 'posts');
-  const actQ = mine ? query(acts, limit(400)) : query(acts, where('visibility', '==', 'public'), limit(400));
+  // Others read the moments shared with them (rules check each audience separately).
+  const actQs = mine
+    ? [query(acts, limit(400))]
+    : [
+        query(acts, where('visibility', '==', 'public'), limit(400)),
+        ...(viewerFollowsOwner ? [query(acts, where('visibility', '==', 'followers'), limit(400))] : []),
+        ...(viewerInCrew ? [query(acts, where('visibility', '==', 'crew'), limit(400))] : []),
+      ];
   const postQs = mine
     ? [query(posts, where('authorId', '==', viewer), where('journeyId', '==', j.id), limit(200))]
     : [
         query(posts, where('authorId', '==', j.ownerId), where('journeyId', '==', j.id), where('visibility', '==', 'public'), limit(200)),
         ...(viewerFollowsOwner ? [query(posts, where('authorId', '==', j.ownerId), where('journeyId', '==', j.id), where('visibility', '==', 'followers'), limit(200))] : []),
       ];
-  const [actRes, ...postRes] = await Promise.allSettled([getDocs(actQ), ...postQs.map((q) => getDocs(q))]);
+  const [actRes, postRes] = await Promise.all([Promise.allSettled(actQs.map((q) => getDocs(q))), Promise.allSettled(postQs.map((q) => getDocs(q)))]);
 
   const out: Moment[] = [];
-  if (actRes.status === 'fulfilled') {
-    actRes.value.docs
+  for (const r of actRes) {
+    if (r.status !== 'fulfilled') continue;
+    r.value.docs
       .map((d) => withId<Activity>(d))
       .filter((a) => a.type !== 'start' && a.type !== 'end')
       .forEach((a) => out.push(fromActivity(a)));
@@ -149,7 +172,7 @@ export async function loadJourneyMoments(j: Journey, viewer: string, viewerFollo
   const firstCity = j.cities[0] ?? null;
   const lastCity = j.cities[j.cities.length - 1] ?? null;
   const seq: Moment[] = [
-    { id: 'start', kind: 'start', title: 'Journey started', caption: j.title, mediaUrl: null, mediaType: null, placeName: null, city: firstCity, rating: null, at: j.startedAt },
+    { id: 'start', kind: 'start', title: 'Journey started', caption: j.title, mediaUrl: null, mediaType: null, thumbUrl: null, placeName: null, city: firstCity, rating: null, at: j.startedAt },
     ...out,
   ];
   if (j.status === 'completed' && j.endedAt) {
@@ -160,6 +183,7 @@ export async function loadJourneyMoments(j: Journey, viewer: string, viewerFollo
       caption: `${j.distanceKm.toFixed(1)} km · ${formatDurationShort(activeDurationMs(j, j.endedAt))}`,
       mediaUrl: null,
       mediaType: null,
+      thumbUrl: null,
       placeName: null,
       city: lastCity,
       rating: null,

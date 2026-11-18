@@ -163,6 +163,7 @@ export async function addActivity(
     caption: string;
     visibility: Visibility;
     mediaUrl?: string | null;
+    thumbUrl?: string | null;
     placeName?: string | null;
     city?: string | null;
     rating?: number | null;
@@ -176,6 +177,7 @@ export async function addActivity(
     title: a.title,
     caption: a.caption,
     mediaUrl: a.mediaUrl ?? null,
+    thumbUrl: a.thumbUrl ?? null,
     placeName: a.placeName ?? null,
     city: a.city ?? null,
     rating: a.rating ?? null,
@@ -191,6 +193,7 @@ export async function addActivity(
     if (a.type === 'video') inc.videos = increment(1);
     if (a.type === 'place' || a.type === 'review') inc.placesCount = increment(1);
     if (a.mediaUrl && a.type === 'photo') inc.coverUrl = a.mediaUrl;
+    else if (a.thumbUrl && a.type === 'video') inc.coverUrl = a.thumbUrl;
     await updateDoc(doc(db, 'journeys', journeyId), inc);
   }
   return ref.id;

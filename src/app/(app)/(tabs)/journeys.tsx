@@ -7,11 +7,12 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Appear } from '@/components/motion';
 import { Button, Empty, Pill, Row, Screen, Segmented, Stat, Card } from '@/components/ui';
+import { TravellingBadge } from '@/components/Travelling';
 import { CITY_BY_ID } from '@/data/cities';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { subscribeMyJourneys } from '@/services/journeys';
-import { colors, radius, type, onDark } from '@/theme';
+import { radius, type, onDark } from '@/theme';
 import type { Journey } from '@/types';
 
 export default function Journeys() {
@@ -83,7 +84,7 @@ function JourneyCard({ j }: { j: Journey }) {
             {j.status === 'completed' ? (
               <Pill text={j.type === 'group' ? 'Group' : 'Solo'} color="#fff" icon={j.type === 'group' ? 'people' : 'person'} />
             ) : (
-              <Pill text={j.status === 'paused' ? 'Paused' : 'Recording'} color={j.status === 'paused' ? colors.yellow : colors.green} icon="radio-button-on" />
+              <TravellingBadge paused={j.status === 'paused'} />
             )}
           </Row>
           <Text style={[onDark.small, { color: '#F1F5F9', marginTop: 4 }]}>

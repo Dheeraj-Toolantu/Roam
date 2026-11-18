@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PressScale } from '@/components/motion';
+import { TravellingBadge } from '@/components/Travelling';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { Button, Card, Chip, ErrorText, Field, InfoText, ProgressBar, Row, Screen } from '@/components/ui';
 import { toast } from '@/components/PostCard';
@@ -14,7 +15,7 @@ import { nearestCity } from '@/logic/journey';
 import { formatClipLength, MAX_VIDEO_SECONDS } from '@/logic/media';
 import { addTimelineItem, subscribeMyGroups } from '@/services/crew';
 import { addActivity, getActiveJourney } from '@/services/journeys';
-import { pickMedia, uploadMedia, type PickedMedia } from '@/services/media';
+import { pickMedia, uploadMoment, type PickedMedia } from '@/services/media';
 import { createPost } from '@/services/social';
 import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
@@ -41,9 +42,12 @@ export default function Capture() {
   const [err, setErr] = useState<string | null>(null);
   const here = useLiveLocation({ detect: true });
 
-  useEffect(() => {
-    getActiveJourney(me.uid).then(setJourney).catch(() => setJourney(null));
-  }, [me.uid, params.journeyId]);
+  // Re-check on every visit: Capture is a tab, so it stays mounted while a trip starts or ends.
+  useFocusEffect(
+    useCallback(() => {
+      getActiveJourney(me.uid).then(setJourney).catch(() => setJourney(null));
+    }, [me.uid]),
+  );
   useEffect(() => subscribeMyGroups(me.uid, setGroups), [me.uid]);
   useEffect(() => {
     if (journey?.groupId && !crewId) setCrewId(journey.groupId);
@@ -71,7 +75,9 @@ export default function Capture() {
     if (!media && !caption.trim()) return setErr('Add a photo, video or a few words');
     setProgress(0);
     try {
-      const url = media ? await uploadMedia(me.uid, media, 'media', setProgress) : null;
+      const up = media ? await uploadMoment(me.uid, media, setProgress) : null;
+      const url = up?.url ?? null;
+      const thumbUrl = up?.thumbUrl ?? null;
       const fix = await tracker.getCurrentPosition();
       const city = fix ? nearestCity(fix) : null;
       const cityName = city?.name ?? here.place?.city ?? journey?.cities[journey.cities.length - 1] ?? null;
@@ -82,35 +88,39 @@ export default function Capture() {
           title: place.trim() || (type === 'photo' ? 'Photo captured' : type === 'video' ? 'Video captured' : caption.trim().slice(0, 60)),
           caption: caption.trim(),
           mediaUrl: url,
+          thumbUrl,
           placeName: place.trim() || null,
           city: cityName,
           lat: fix?.lat ?? null,
           lng: fix?.lng ?? null,
-          visibility,
+          // Same audience as the trip — moments go to the travel feed when the trip ends.
+          visibility: journey.visibility,
         });
       }
-      if (visibility !== 'private' && visibility !== 'crew') {
+      // Standalone moment (no trip running) → straight to the feed.
+      if (!journey && visibility !== 'private' && visibility !== 'crew') {
         await createPost(me, {
           text: caption.trim(),
           visibility,
           mediaUrl: url,
           mediaType: media ? media.type : null,
+          thumbUrl,
           placeName: place.trim() || null,
           city: cityName,
-          journeyId: journey?.id ?? null,
         });
       }
-      if (crewId) {
-        const g = groups.find((x) => x.id === crewId);
+      const timelineGroup = journey ? journey.groupId : crewId;
+      if (timelineGroup) {
+        const g = groups.find((x) => x.id === timelineGroup);
         await addTimelineItem(
-          crewId,
+          timelineGroup,
           me,
-          { type: type === 'note' ? 'note' : type, text: caption.trim() || (place.trim() ? `At ${place.trim()}` : 'New moment'), mediaUrl: url, placeName: place.trim() || null },
+          { type: type === 'note' ? 'note' : type, text: caption.trim() || (place.trim() ? `At ${place.trim()}` : 'New moment'), mediaUrl: url, thumbUrl, placeName: place.trim() || null },
           g ? { memberIds: g.memberIds, groupName: g.name } : undefined,
         );
       }
       reset();
-      toast(journey ? 'Moment added to your journey' : 'Moment shared');
+      toast(journey ? `Added to “${journey.title}”` : 'Moment shared');
       // Return to the journey the user captured from (Capture is a tab, so 'back' would follow tab history).
       if (params.journeyId) router.dismissTo(`/journey/${params.journeyId}`);
     } catch (e) {
@@ -122,9 +132,20 @@ export default function Capture() {
   return (
     <Screen>
       <Text style={[type.h1, { marginBottom: 4 }]}>Capture</Text>
-      <Text style={[type.small, { marginBottom: 16 }]}>
-        {journey ? `Adding to “${journey.title}”` : 'No active journey — this will be shared as a standalone moment.'}
-      </Text>
+      {journey ? (
+        <Pressable onPress={() => router.push(`/journey/${journey.id}`)} style={styles.trip} testID="capture-trip" accessibilityRole="button">
+          <View style={{ flex: 1, gap: 6 }}>
+            <Text style={type.tiny}>ADDING TO YOUR RUNNING TRIP</Text>
+            <Text style={type.h3} numberOfLines={1}>
+              {journey.title}
+            </Text>
+            <TravellingBadge tone="dark" paused={journey.status === 'paused'} />
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+        </Pressable>
+      ) : (
+        <Text style={[type.small, { marginBottom: 16 }]}>No trip running — this will be shared as a standalone moment.</Text>
+      )}
 
       {media ? (
         <View style={{ marginBottom: 14 }}>
@@ -132,7 +153,7 @@ export default function Capture() {
             <Image source={{ uri: media.uri }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: radius.lg }} contentFit="cover" />
           ) : (
             <View style={{ gap: 6 }}>
-              <VideoPlayer uri={media.uri} style={{ width: '100%', aspectRatio: 9 / 16, maxHeight: 420, borderRadius: radius.lg }} testID="capture-video-preview" />
+              <VideoPlayer immediate uri={media.uri} style={{ width: '100%', aspectRatio: 9 / 16, maxHeight: 420, borderRadius: radius.lg }} testID="capture-video-preview" />
               <Text style={type.small} testID="capture-video-ready">
                 Video ready{media.durationMs ? ` · ${formatClipLength(media.durationMs)}` : ''}
               </Text>
@@ -162,6 +183,8 @@ export default function Capture() {
         </Row>
       )}
 
+      {!journey && (
+        <>
       <Text style={[type.small, { fontWeight: '600', marginBottom: 8 }]}>Share with</Text>
       <Row style={{ flexWrap: 'wrap', marginBottom: 6 }}>
         <Chip label="Only me" icon="lock-closed" active={visibility === 'private'} onPress={() => setVisibility('private')} />
@@ -180,10 +203,10 @@ export default function Capture() {
           <Text style={[type.tiny, { marginTop: 8 }]}>Sharing with a crew never changes who can see your other posts.</Text>
         </Card>
       )}
-      {!journey && (
         <View style={{ marginTop: 10 }}>
           <InfoText text="Start a journey to automatically attach moments to your route and timeline." icon="navigate" />
         </View>
+        </>
       )}
       <ErrorText text={err} />
       {progress != null && progress < 100 && media && (
@@ -192,7 +215,7 @@ export default function Capture() {
           <ProgressBar pct={progress} />
         </View>
       )}
-      <Button testID="capture-save" title="Save Moment" icon="sparkles" onPress={save} loading={progress != null} style={{ marginTop: 16 }} />
+      <Button testID="capture-save" title={journey ? 'Add to trip' : 'Save Moment'} icon="sparkles" onPress={save} loading={progress != null} style={{ marginTop: 16 }} />
     </Screen>
   );
 }
@@ -207,3 +230,7 @@ function CaptureTile({ icon, label, onPress, colors: c, testID }: { icon: 'camer
     </PressScale>
   );
 }
+
+const styles = StyleSheet.create({
+  trip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: '#FFC9AA', padding: 14, marginBottom: 16 },
+});

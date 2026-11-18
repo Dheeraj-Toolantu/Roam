@@ -119,8 +119,17 @@ service cloud.firestore {
         allow read, write: if signedIn() && get(/databases/$(database)/documents/journeys/$(jid)).data.ownerId == me();
       }
       match /activities/{aid} {
-        function journeyOwner() { return get(/databases/$(database)/documents/journeys/$(jid)).data.ownerId; }
-        allow read: if signedIn() && (journeyOwner() == me() || resource.data.visibility == 'public' || isAdmin());
+        function journeyDoc() { return get(/databases/$(database)/documents/journeys/$(jid)).data; }
+        function journeyOwner() { return journeyDoc().ownerId; }
+        // Moments of a running trip are shown to the same audience as the trip itself
+        // (live stories + the finished-journey page), never wider than the moment's own setting.
+        allow read: if signedIn() && (
+          journeyOwner() == me()
+          || resource.data.visibility == 'public'
+          || (resource.data.visibility == 'followers' && follows(journeyOwner()))
+          || (resource.data.visibility == 'crew' && journeyDoc().groupId is string && isMember(journeyDoc().groupId))
+          || isAdmin()
+        );
         allow create, update: if signedIn() && journeyOwner() == me() && validVisibility(incoming().visibility);
         allow delete: if signedIn() && journeyOwner() == me();
       }

@@ -253,8 +253,13 @@ try {
     await tid(b, 'vis-public').filter({ visible: true }).first().click();
     await tid(b, 'capture-save').filter({ visible: true }).first().click();
     await tid(b, 'toast').filter({ hasText: 'Moment shared' }).first().waitFor({ timeout: 30_000 });
-    // The uploaded clip must actually play from Cloud Storage in the feed.
+    // The feed shows the uploaded thumbnail first; tapping it plays the clip from Cloud Storage.
     await b.goto(BASE + '/');
+    const play = b.locator('[data-testid^="video-"][data-testid$="-play"]').filter({ visible: true }).first();
+    await play.waitFor({ timeout: 20_000 });
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid$="-play"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await shot(b, '04c-video-thumbnail');
+    await play.click();
     await expectPlayable(b, '[data-testid^="video-"] video', 'feed post');
   });
 
@@ -295,9 +300,11 @@ try {
     await a.waitForFunction(() => /Starting from .*Goa/.test(document.querySelector('[data-testid="start-location"]')?.textContent ?? ''), null, { timeout: 15_000 });
     await tid(a, 'bg-unsupported').filter({ visible: true }).first().waitFor(); // web: explains background needs the mobile app
     await tid(a, 'journey-title').fill('Goa Trip 2026');
+    await tid(a, 'start-vis-public').click();
     await shot(a, '05-start-journey');
     await tid(a, 'start-journey').click();
-    await text(a, 'Recording');
+    await tid(a, 'trip-status').filter({ visible: true }).first().waitFor(); // animated "Travelling" badge
+    await text(a, 'Travelling');
     await text(a, 'Recording while ROAM is open.');
     await a.locator('[data-testid="journey-map"] [data-testid="google-map"] .gm-style').first().waitFor({ timeout: 30_000 });
     // Simulate a ride south along the coast from Baga: ~150 m per fix every ~0.7 s.
@@ -328,7 +335,9 @@ try {
     await tid(a, 'use-current-place').filter({ visible: true }).first().waitFor();
     await tid(a, 'capture-caption').filter({ visible: true }).first().fill('Sunset at Baga Beach 🌅');
     await tid(a, 'capture-place').filter({ visible: true }).first().fill('Baga Beach');
-    await tid(a, 'vis-public').filter({ visible: true }).first().click();
+    // A trip is running: no audience / crew questions, the moment goes into the trip.
+    await tid(a, 'capture-trip').filter({ visible: true }).first().waitFor();
+    if (await tid(a, 'vis-public').filter({ visible: true }).count()) throw new Error('capture asked for visibility during a running trip');
     await tid(a, 'capture-save').filter({ visible: true }).first().click();
     await a.waitForURL(/journey\//, { timeout: 30_000 });
     await text(a, 'Baga Beach');
@@ -360,6 +369,25 @@ try {
     await text(a, 'Completed');
     await tid(a, 'make-magic').filter({ visible: true }).first().waitFor();
     await shot(a, '07-journey-completed');
+  });
+
+  await step('Only the finished trip reaches the feed; it opens step by step with photo and playable video', async () => {
+    await b.goto(BASE + '/');
+    const card = b.locator('[data-testid^="journey-story-"]').filter({ hasText: 'Goa Trip 2026' }).filter({ visible: true }).first();
+    await card.waitFor({ timeout: 20_000 });
+    // the moments of the trip are not separate feed posts
+    if (await b.getByText('Jet ski at Calangute 🌊').filter({ visible: true }).count()) throw new Error('trip moment was posted to the feed on its own');
+    await card.click();
+    await b.waitForURL(/\/travel\//);
+    await tid(b, 'journey-sequence').filter({ visible: true }).first().waitFor({ timeout: 20_000 });
+    await text(b, 'Sunset at Baga Beach 🌅');
+    await text(b, 'Jet ski at Calangute 🌊');
+    const play = b.locator('[data-testid^="step-video-"][data-testid$="-play"]').filter({ visible: true }).first();
+    await play.scrollIntoViewIfNeeded();
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid^="step-video-"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await shot(b, '07b-travel-story-video-thumb');
+    await play.click();
+    await expectPlayable(b, '[data-testid^="step-video-"] video', 'trip video');
   });
 
   await step('AC-006 ROAM Magic: cinematic video plays all scenes and can be saved', async () => {
@@ -590,8 +618,8 @@ try {
 
   await step('AC-007 Social: friend sees public post in feed, likes it; author is notified', async () => {
     await b.goto(BASE + '/');
-    await text(b, 'Sunset at Baga Beach');
-    const like = b.locator('[data-testid^="like-"]').filter({ visible: true }).first();
+    await text(b, 'Goa Trip 2026');
+    const like = b.locator('[data-testid^="post-"]:has([data-testid^="journey-story-"]) [data-testid^="like-"]').filter({ visible: true }).first();
     await like.click();
     await b.waitForTimeout(800);
     await shot(b, '14-feed');
@@ -627,7 +655,7 @@ try {
     await a.getByText('Live World').first().click();
     await tid(a, 'live-total').waitFor();
     await a.goto(BASE + '/city/goa');
-    await text(a, 'Sunset at Baga Beach');
+    await text(a, 'Goa Trip 2026');
     await a.goto(BASE + '/memory-map');
     await text(a, 'Goa');
   });
