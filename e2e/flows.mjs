@@ -211,24 +211,26 @@ try {
 
   await step('Bottom tab bar: tapping each tab navigates (real touch taps)', async () => {
     await a.goto(BASE + '/');
-    await a.getByTestId('tab-explore').first().waitFor();
+    await a.getByTestId('tab-alerts').first().waitFor();
     const errorsBefore = consoleErrors.filter((e) => e.includes('pageerror')).length;
-    // Footer holds exactly Home, Explore, +, Journeys, Crew (Profile opens from the Home avatar).
+    // Footer holds exactly Home, Alerts (notifications), +, Journeys, Crew (Explore opens from Home's search, Profile from the avatar).
     const tabIds = await a.locator('[data-testid^="tab-"]').evaluateAll((els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.testid));
-    if (tabIds.join(',') !== 'tab-index,tab-explore,tab-capture,tab-journeys,tab-crew') throw new Error(`unexpected footer tabs: ${tabIds}`);
+    if (tabIds.join(',') !== 'tab-home,tab-alerts,tab-capture,tab-journeys,tab-crew') throw new Error(`unexpected footer tabs: ${tabIds}`);
     await a.getByTestId('open-profile').filter({ visible: true }).first().tap();
     await a.waitForURL((u) => new URL(u).pathname === '/profile', { timeout: 10_000 });
     await a.getByTestId('profile-name').filter({ visible: true }).first().waitFor();
+    // the footer stays on pushed pages too
+    await a.getByTestId('bottom-nav').filter({ visible: true }).first().waitFor();
     await a.getByLabel('Back', { exact: true }).filter({ visible: true }).first().tap();
     await a.waitForURL((u) => new URL(u).pathname === '/', { timeout: 10_000 });
-    for (const [tab, path] of [['explore', '/explore'], ['journeys', '/journeys'], ['crew', '/crew'], ['index', '/'], ['capture', '/capture']]) {
+    for (const [tab, path] of [['alerts', '/notifications'], ['journeys', '/journeys'], ['crew', '/crew'], ['home', '/'], ['capture', '/capture']]) {
       await a.getByTestId(`tab-${tab}`).filter({ visible: true }).first().tap();
       await a.waitForURL((u) => new URL(u).pathname === path, { timeout: 10_000 }).catch(() => {
         throw new Error(`tab-${tab} did not navigate to ${path} (at ${a.url()})`);
       });
     }
     if (consoleErrors.filter((e) => e.includes('pageerror')).length > errorsBefore) throw new Error('page error while tapping tabs');
-    await a.getByTestId('tab-index').filter({ visible: true }).first().tap();
+    await a.getByTestId('tab-home').filter({ visible: true }).first().tap();
   });
 
   await step('Login/logout persists account', async () => {
