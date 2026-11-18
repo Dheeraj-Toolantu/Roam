@@ -40,6 +40,7 @@ export default function NotificationsScreen() {
   return (
     <Screen>
       <Header
+        back={false}
         title="Notifications"
         subtitle={unread ? `${unread} unread` : 'All caught up'}
         right={unread ? <Button title="Mark all read" small variant="secondary" onPress={() => markAllRead(me.uid, visible)} testID="mark-all-read" /> : undefined}

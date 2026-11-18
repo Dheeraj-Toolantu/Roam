@@ -29,6 +29,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="capture" />
       <Tabs.Screen name="journeys" />
       <Tabs.Screen name="crew" />
+      <Tabs.Screen name="notifications" />
     </Tabs>
   );
 }

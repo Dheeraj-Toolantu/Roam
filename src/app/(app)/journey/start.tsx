@@ -41,7 +41,11 @@ export default function StartJourney() {
     getActiveJourney(me.uid)
       .then((j) => {
         if (!alive) return;
-        if (j) router.replace(`/capture?journeyId=${j.id}`);
+        if (j) {
+          // Capture is a tab: close this page and switch tab (don't stack a second copy of the tabs).
+          if (router.canDismiss()) router.dismissAll();
+          router.navigate(`/capture?journeyId=${j.id}`);
+        }
         else setChecking(false);
       })
       .catch(() => alive && setChecking(false));

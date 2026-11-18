@@ -23,6 +23,15 @@ const ITEMS: Item[] = [
   { key: 'crew', label: 'Crew', href: '/crew', icon: 'people-outline', iconOn: 'people', match: (p) => p.startsWith('/crew') || p.startsWith('/trip') },
 ];
 
+/**
+ * Every footer target is a tab. From a pushed page (post, profile, trip…) first close the
+ * pushed pages, then switch tab — otherwise a second copy of the tabs would be stacked on top.
+ */
+export function goTab(href: Href) {
+  if (router.canDismiss()) router.dismissAll();
+  router.navigate(href);
+}
+
 /** Full-screen experiences that keep the whole screen to themselves. */
 const HIDDEN = ['/stories', '/magic'];
 
@@ -37,7 +46,7 @@ function NavItem({ item, active, badge }: { item: Item; active: boolean; badge?:
     <Pressable
       onPress={() => {
         tap();
-        router.navigate(item.href);
+        goTab(item.href);
       }}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
@@ -66,7 +75,7 @@ function CaptureItem({ active }: { active: boolean }) {
       onPress={() => {
         tap('medium');
         spin.set(withSequence(withTiming(1, { duration: 220 }), withTiming(0, { duration: 0 })));
-        router.navigate('/capture');
+        goTab('/capture');
       }}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}

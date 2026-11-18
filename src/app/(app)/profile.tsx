@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { confirmAsync, PostCard } from '@/components/PostCard';
 import { IconBadge, PressScale, type IconGradient } from '@/components/motion';
+import { goTab } from '@/components/BottomNav';
 import { Avatar, Button, Card, Empty, goBackOr, IconButton, Loading, Row, Screen, Segmented, Stat, type IconName } from '@/components/ui';
 import { passportStats } from '@/logic/achievements';
 import { signOut, useMe, useSession } from '@/lib/session';
@@ -43,7 +44,7 @@ export default function Profile() {
       <Row style={{ marginBottom: space.lg }}>
         <IconButton icon="chevron-back" accessibilityLabel="Back"onPress={() => goBackOr('/')} />
         <Text style={[type.h1, { flex: 1, marginLeft: 10 }]}>My Travel Passport</Text>
-        <IconButton icon="notifications-outline" badge={unread} accessibilityLabel="Notifications" onPress={() => router.push('/notifications')} />
+        <IconButton icon="notifications-outline" badge={unread} accessibilityLabel="Notifications" onPress={() => goTab('/notifications')} />
         <IconButton icon="settings-outline" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
       </Row>
 
@@ -74,7 +75,7 @@ export default function Profile() {
       <Row style={{ marginTop: space.lg, gap: space.sm }}>
         <Tile icon="book" label="Travel Passport" onPress={() => router.push('/passport')} testID="open-passport" />
         <Tile icon="create" label="Edit profile" onPress={() => router.push('/settings')} testID="open-settings" />
-        <Tile icon="notifications" label="Notifications" onPress={() => router.push('/notifications')} />
+        <Tile icon="notifications" label="Notifications" onPress={() => goTab('/notifications')} />
         {admin && <Tile icon="shield" label="Admin" onPress={() => router.push('/admin')} testID="open-admin" />}
       </Row>
 
