@@ -40,6 +40,15 @@ describe('storage.rules', () => {
     await assertFails(uploadBytes(ref(as('alice'), 'receipts/alice/r.mp4'), bytes(1000), vid('5000')));
   });
 
+  it('ROAM story videos: own folder, video only, up to ~1 minute declared', async () => {
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'stories/alice/s.mp4'), bytes(1000), vid('60000')));
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'stories/alice/s.webm'), bytes(1000), { contentType: 'video/webm', customMetadata: { durationMs: '15000' } }));
+    await assertFails(uploadBytes(ref(as('alice'), 'stories/alice/long.mp4'), bytes(1000), vid('70001')));
+    await assertFails(uploadBytes(ref(as('alice'), 'stories/alice/nolen.mp4'), bytes(1000), vid()));
+    await assertFails(uploadBytes(ref(as('alice'), 'stories/alice/x.jpg'), bytes(1000), { contentType: 'image/jpeg' }));
+    await assertFails(uploadBytes(ref(as('bob'), 'stories/alice/s.mp4'), bytes(1000), vid('20000')));
+  });
+
   it('rejects non-media files', async () => {
     await assertFails(uploadBytes(ref(as('alice'), 'media/alice/a.exe'), bytes(100), { contentType: 'application/octet-stream' }));
     await assertFails(uploadBytes(ref(as('alice'), 'media/alice/a.html'), bytes(100), { contentType: 'text/html' }));

@@ -32,7 +32,9 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
 
   const [pop, setPop] = useState(0);
   /** A finished journey shared to the feed: opens the whole trip in sequence. */
-  const journeyStory = post.kind === 'story' && !!post.journeyId;
+  // Older ROAM Magic posts carried only the trip cover (no video file): open the trip instead.
+  const legacyMagic = post.kind === 'video' && post.mediaType !== 'video';
+  const journeyStory = (post.kind === 'story' || legacyMagic) && !!post.journeyId;
   const openJourney = () => router.push(`/travel/${post.journeyId}`);
   const lastTap = useRef(0);
   const bump = useBump(liked);
@@ -139,7 +141,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
             <LinearGradient colors={['transparent', '#110F26E6']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
             <View style={styles.storyTag}>
               <Ionicons name="trail-sign" size={11} color="#fff" />
-              <Text style={styles.storyTagText}>JOURNEY COMPLETED</Text>
+              <Text style={styles.storyTagText}>{legacyMagic ? 'ROAM MAGIC' : 'JOURNEY COMPLETED'}</Text>
             </View>
             <View style={{ padding: space.md }}>
               <Text style={styles.storyTitle} numberOfLines={2}>

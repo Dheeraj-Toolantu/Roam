@@ -27,6 +27,19 @@ service firebase.storage {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || okMedia());
     }
+    // Rendered ROAM story videos (Magic): up to 1 minute (+10 s margin) and 150 MB.
+    function isStoryVideo() {
+      return request.resource.contentType.matches('video/(mp4|webm)')
+        && request.resource.size < 150 * 1024 * 1024
+        && request.resource.metadata != null
+        && request.resource.metadata.durationMs is string
+        && request.resource.metadata.durationMs.matches('^[0-9]{1,6}$')
+        && int(request.resource.metadata.durationMs) <= 70000;
+    }
+    match /stories/{uid}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && (request.resource == null || isStoryVideo());
+    }
     match /avatars/{uid}/{file} {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == uid

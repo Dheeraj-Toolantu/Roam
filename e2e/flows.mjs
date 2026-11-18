@@ -66,12 +66,12 @@ async function makeSong() {
 }
 
 /** Asserts a <video> loads its media (≈6 s clip) and its playhead advances when played. */
-async function expectPlayable(page, selector, where) {
+async function expectPlayable(page, selector, where, [minS, maxS] = [5, 7]) {
   const v = page.locator(selector).first();
   await v.waitFor({ state: 'attached', timeout: 20_000 });
   await page.waitForFunction((el) => el && el.readyState >= 1 && Number.isFinite(el.duration), await v.elementHandle(), { timeout: 20_000 });
   const dur = await v.evaluate((el) => el.duration);
-  if (dur < 5 || dur > 7) throw new Error(`${where}: unexpected video duration ${dur}`);
+  if (dur < minS || dur > maxS) throw new Error(`${where}: unexpected video duration ${dur}`);
   if (!(await v.evaluate((el) => el.controls))) throw new Error(`${where}: video has no playback controls`);
   await v.evaluate((el) => { el.muted = true; return el.play(); });
   await page.waitForFunction((el) => el.currentTime > 0.3, await v.elementHandle(), { timeout: 15_000 });
@@ -467,6 +467,21 @@ try {
     await shot(a, '09b-story-video-ready');
     const [dl] = await Promise.all([a.waitForEvent('download'), tid(a, 'download-story').filter({ visible: true }).first().click()]);
     if (!/^roam-goa-trip-2026\.(mp4|webm)$/.test(dl.suggestedFilename())) throw new Error(`bad file name ${dl.suggestedFilename()}`);
+  });
+
+  await step('ROAM Magic story video posted to the feed plays for followers (with thumbnail)', async () => {
+    await tid(a, 'post-story-video').filter({ visible: true }).first().click();
+    await text(a, 'Posted to the feed ✓', { timeout: 120_000 });
+    await b.goto(BASE + '/');
+    const card = b.locator('[data-testid^="post-"]').filter({ hasText: 'my ROAM Magic video' }).filter({ visible: true }).first();
+    await card.waitFor({ timeout: 20_000 });
+    const play = card.locator('[data-testid$="-play"]').first();
+    await play.waitFor();
+    await b.waitForFunction(() => [...document.querySelectorAll('[data-testid$="-play"] img')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20_000 });
+    await card.scrollIntoViewIfNeeded();
+    await shot(b, '09d-magic-video-in-feed');
+    await play.click();
+    await expectPlayable(b, '[data-testid^="post-"]:has-text("my ROAM Magic video") video', 'Magic video in feed', [27, 33]);
   });
 
   await step('Story styles + my own music: 15 s Polaroid story with a song uploaded from the device', async () => {

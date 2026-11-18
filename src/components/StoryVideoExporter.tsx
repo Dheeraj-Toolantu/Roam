@@ -12,6 +12,8 @@ export function StoryVideoExporter(_props: {
   track: TrackId;
   autoFocus?: boolean;
   onCreated?: (r: StoryVideoResult, template: StoryTemplate) => void;
+  onPost?: (r: StoryVideoResult, onProgress: (pct: number) => void) => Promise<void>;
+  postLabel?: string;
 }) {
   return (
     <InfoText text="Shareable story videos (WhatsApp, Facebook) are created in the ROAM web app for now — open jododeal-b845b.web.app in your phone's browser. Native export is coming." />

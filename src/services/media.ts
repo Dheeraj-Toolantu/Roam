@@ -121,6 +121,38 @@ export async function uploadMoment(uid: string, media: PickedMedia, onProgress?:
   return { url, thumbUrl };
 }
 
+/** ROAM story videos are rendered in the app and can be up to a minute long. */
+export const MAX_STORY_SECONDS = 70;
+
+/**
+ * Upload a rendered ROAM story video (Magic) so it can be posted and played in the feed,
+ * plus a JPEG thumbnail taken from it. Stored under stories/{uid}/ (see storage.rules).
+ */
+export async function uploadStoryVideo(
+  uid: string,
+  r: { blob: Blob; url: string; mimeType: string; durationSec: number },
+  onProgress?: (pct: number) => void,
+): Promise<{ url: string; thumbUrl: string | null }> {
+  const durationMs = Math.round(r.durationSec * 1000);
+  if (!(durationMs > 0) || durationMs > MAX_STORY_SECONDS * 1000) throw new Error('This story video is too long to post (max 1 minute).');
+  // Codec parameters ("video/mp4;codecs=…") aren't a valid stored content type.
+  const contentType = (r.mimeType || r.blob.type || 'video/mp4').split(';')[0].trim();
+  const id = randomId();
+  const task = uploadBytesResumable(ref(storage, `stories/${uid}/${id}.${contentType.includes('mp4') ? 'mp4' : 'webm'}`), r.blob, {
+    contentType,
+    customMetadata: { durationMs: String(durationMs) },
+  });
+  await new Promise<void>((resolve, reject) => {
+    task.on('state_changed', (s) => onProgress?.(s.totalBytes ? (s.bytesTransferred / s.totalBytes) * 90 : 0), reject, () => resolve());
+  });
+  const url = await getDownloadURL(task.snapshot.ref);
+  let thumbUrl: string | null = null;
+  const thumb = await makeVideoThumbnail(r.url, durationMs);
+  if (thumb) thumbUrl = await uploadMedia(uid, { uri: thumb.uri, mimeType: thumb.mimeType, file: (thumb as { file?: Blob }).file }, 'media').catch(() => null);
+  onProgress?.(100);
+  return { url, thumbUrl };
+}
+
 /**
  * Read a local file URI into a Blob. On Android/iOS, XMLHttpRequest is more reliable than
  * fetch() for file:// and content:// URIs (fetch can fail or hang for gallery files).
