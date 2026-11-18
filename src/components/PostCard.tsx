@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import Animated from 'react-native-reanimated';
@@ -7,7 +8,7 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { hasLiked, isSaved, report, toggleLike, toggleSave } from '../services/social';
 import { timeAgo } from '../services/util';
-import { colors, radius, space, type } from '../theme';
+import { colors, gradients, radius, shadows, space, type } from '../theme';
 import type { Post, UserProfile } from '../types';
 import { confirmAsync, toast } from './Dialogs';
 import { HeartPop, tap, useBump } from './motion';
@@ -30,6 +31,9 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
   }, [post.id, post.likesCount, me.uid]);
 
   const [pop, setPop] = useState(0);
+  /** A finished journey shared to the feed: opens the whole trip in sequence. */
+  const journeyStory = post.kind === 'story' && !!post.journeyId;
+  const openJourney = () => router.push(`/travel/${post.journeyId}`);
   const lastTap = useRef(0);
   const bump = useBump(liked);
 
@@ -46,7 +50,9 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
     }
     lastTap.current = now;
     setTimeout(() => {
-      if (lastTap.current === now) router.push(`/post/${post.id}`);
+      if (lastTap.current !== now) return;
+      if (journeyStory) openJourney();
+      else router.push(`/post/${post.id}`);
     }, 300);
   };
 
@@ -87,7 +93,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
           <Row gap={6}>
             {!!(post.placeName || post.city) && (
               <>
-                <Ionicons name="location" size={12} color={colors.pink} />
+                <Ionicons name="location" size={12} color={colors.brand} />
                 <Text style={type.tiny} numberOfLines={1}>
                   {[post.placeName, post.city].filter(Boolean).join(', ')}
                 </Text>
@@ -102,11 +108,11 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
           <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
         </Pressable>
       </Row>
-      {post.kind !== 'moment' && (
+      {post.kind !== 'moment' && !journeyStory && (
         <Pill
           text={post.kind === 'achievement' ? 'Achievement unlocked' : post.kind === 'video' ? 'ROAM Magic video' : post.kind === 'review' ? 'Review' : 'Travel story'}
           icon={post.kind === 'achievement' ? 'trophy' : post.kind === 'video' ? 'film' : post.kind === 'review' ? 'star' : 'book'}
-          color={post.kind === 'achievement' ? colors.yellow : colors.violet}
+          color={post.kind === 'achievement' ? colors.yellow : colors.brand}
           style={{ marginBottom: 8 }}
         />
       )}
@@ -117,18 +123,48 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
           ))}
         </Row>
       )}
-      {!!post.text && (
+      {!!post.text && !journeyStory && (
         <Text style={[type.body, { marginBottom: post.mediaUrl ? space.md : 0, lineHeight: 21 }]} onPress={() => router.push(`/post/${post.id}`)}>
           {post.text}
         </Text>
       )}
-      {!!post.mediaUrl && post.mediaType === 'image' && (
+      {journeyStory && (
+        <Pressable onPress={onMediaPress} accessibilityRole="button" accessibilityLabel="View the full journey" testID={`journey-story-${post.id}`}>
+          <View style={styles.story}>
+            {post.mediaUrl && post.mediaType === 'image' ? (
+              <Image source={{ uri: post.mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} />
+            ) : (
+              <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            )}
+            <LinearGradient colors={['transparent', '#110F26E6']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
+            <View style={styles.storyTag}>
+              <Ionicons name="trail-sign" size={11} color="#fff" />
+              <Text style={styles.storyTagText}>JOURNEY COMPLETED</Text>
+            </View>
+            <View style={{ padding: space.md }}>
+              <Text style={styles.storyTitle} numberOfLines={2}>
+                {post.text.split(':')[0]}
+              </Text>
+              <Text style={styles.storySub} numberOfLines={2}>
+                {post.text.includes(':') ? post.text.slice(post.text.indexOf(':') + 1).trim() : ''}
+              </Text>
+            </View>
+            <HeartPop show={pop} />
+          </View>
+          <View style={styles.storyCta}>
+            <Ionicons name="footsteps" size={16} color={colors.brand} />
+            <Text style={styles.storyCtaText}>View full journey, step by step</Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.brand} />
+          </View>
+        </Pressable>
+      )}
+      {!journeyStory && !!post.mediaUrl && post.mediaType === 'image' && (
         <Pressable onPress={onMediaPress} accessibilityLabel="Photo. Double-tap to like" testID={`media-${post.id}`}>
           <Image source={{ uri: post.mediaUrl }} style={styles.media} contentFit="cover" transition={250} />
           <HeartPop show={pop} />
         </Pressable>
       )}
-      {!!post.mediaUrl && post.mediaType === 'video' && (
+      {!journeyStory && !!post.mediaUrl && post.mediaType === 'video' && (
         <VideoPlayer uri={post.mediaUrl} style={[styles.media, styles.video]} testID={`video-${post.id}`} />
       )}
       <Row style={{ marginTop: space.md, justifyContent: 'space-between' }}>
@@ -168,7 +204,7 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
       {likes > 0 && (
         <Pressable onPress={() => setShowLikers(true)} testID={`liked-by-${post.id}`} accessibilityRole="button" style={{ marginTop: 8 }}>
           <Text style={[type.small, { fontWeight: '700' }]}>
-            ❤️ Liked by {likes} {likes === 1 ? 'person' : 'people'} · <Text style={{ color: colors.cyan }}>See who</Text>
+            ❤️ Liked by {likes} {likes === 1 ? 'person' : 'people'} · <Text style={{ color: colors.brand }}>See who</Text>
           </Text>
         </Pressable>
       )}
@@ -178,7 +214,14 @@ export function PostCard({ post, me, onChanged }: { post: Post; me: UserProfile;
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.cardBorder, marginBottom: space.md },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.cardBorder, marginBottom: space.md, ...shadows.soft },
+  story: { height: 220, borderRadius: radius.md, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: colors.ink },
+  storyTag: { position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  storyTagText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  storyTitle: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  storySub: { color: '#ffffffd9', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  storyCta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingVertical: 11, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: '#FFC9AA' },
+  storyCtaText: { flex: 1, color: colors.brandDark, fontWeight: '800', fontSize: 13 },
   media: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.cardAlt },
   video: { aspectRatio: 9 / 16, maxHeight: 460, backgroundColor: '#000' },
 });

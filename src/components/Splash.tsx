@@ -17,19 +17,19 @@ export function Splash() {
   const logo = useAnimatedStyle(() => ({ transform: [{ translateY: bob.value }] }));
   const progress = useAnimatedStyle(() => ({ transform: [{ translateX: -60 + 120 * bar.value }] }));
   return (
-    <LinearGradient colors={['#1B1050', '#5B2A86', '#C2410C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <LinearGradient colors={['#FFFFFF', '#FFF4ED', '#F8FAFC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View entering={FadeIn.duration(500)} style={[{ alignItems: 'center' }, logo]}>
-        <PulseRing color="#22D3EE" size={130}>
+        <PulseRing color={colors.brand} size={130}>
           <Logo size={92} />
         </PulseRing>
       </Animated.View>
       <Animated.View entering={FadeInDown.delay(200).springify()} style={{ alignItems: 'center', marginTop: 18 }}>
         <Wordmark size={44} />
-        <Text style={{ color: '#fff', opacity: 0.9, fontSize: 18, textAlign: 'center', marginTop: 14, lineHeight: 26, fontWeight: '600' }}>
+        <Text style={{ color: colors.textMuted, fontSize: 18, textAlign: 'center', marginTop: 14, lineHeight: 26, fontWeight: '600' }}>
           Explore Together ✈️{'\n'}Experience More 🌏{'\n'}Remember Forever 💜
         </Text>
       </Animated.View>
-      <View style={{ width: 120, height: 4, borderRadius: 2, backgroundColor: '#ffffff26', overflow: 'hidden', marginTop: 34 }}>
+      <View style={{ width: 120, height: 4, borderRadius: 2, backgroundColor: colors.cardBorder, overflow: 'hidden', marginTop: 34 }}>
         <Animated.View style={[{ width: 60, height: 4, borderRadius: 2, backgroundColor: colors.cyan }, progress]} />
       </View>
     </LinearGradient>

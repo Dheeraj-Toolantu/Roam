@@ -11,7 +11,7 @@ import { CITY_BY_ID } from '@/data/cities';
 import { useMe } from '@/lib/session';
 import { activeDurationMs, formatDurationShort, formatKm } from '@/logic/journey';
 import { subscribeMyJourneys } from '@/services/journeys';
-import { colors, radius, type } from '@/theme';
+import { colors, radius, type, onDark } from '@/theme';
 import type { Journey } from '@/types';
 
 export default function Journeys() {
@@ -70,14 +70,14 @@ export default function Journeys() {
 
 function JourneyCard({ j }: { j: Journey }) {
   const city = j.anchorCityId ? CITY_BY_ID[j.anchorCityId] : null;
-  const grad: [string, string] = city?.colors ?? ['#4C1D95', '#1E3A8A'];
+  const grad: [string, string] = city?.colors ?? ['#1B1838', '#3F3774'];
   return (
     <Pressable onPress={() => router.push(`/journey/${j.id}`)} style={{ marginBottom: 12 }} testID="journey-card">
       <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.lg, overflow: 'hidden' }}>
         {j.coverUrl && <Image source={{ uri: j.coverUrl }} style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.4 }} contentFit="cover" />}
-        <View style={{ padding: 16, backgroundColor: 'rgba(6,10,31,0.35)' }}>
+        <View style={{ padding: 16, backgroundColor: 'rgba(17,15,38,0.35)' }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={type.h2} numberOfLines={1}>
+            <Text style={onDark.h2} numberOfLines={1}>
               {city?.emoji ?? '🧭'} {j.title}
             </Text>
             {j.status === 'completed' ? (
@@ -86,15 +86,15 @@ function JourneyCard({ j }: { j: Journey }) {
               <Pill text={j.status === 'paused' ? 'Paused' : 'Recording'} color={j.status === 'paused' ? colors.yellow : colors.green} icon="radio-button-on" />
             )}
           </Row>
-          <Text style={[type.small, { color: '#F1F5F9', marginTop: 4 }]}>
+          <Text style={[onDark.small, { color: '#F1F5F9', marginTop: 4 }]}>
             {new Date(j.startedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             {j.cities.length ? ` · ${j.cities.join(', ')}` : ''}
           </Text>
           <Row gap={16} style={{ marginTop: 12 }}>
-            <Row gap={4}><Ionicons name="time-outline" size={14} color="#fff" /><Text style={type.small}>{formatDurationShort(activeDurationMs(j))}</Text></Row>
-            <Row gap={4}><Ionicons name="navigate-outline" size={14} color="#fff" /><Text style={type.small}>{formatKm(j.distanceKm)}</Text></Row>
-            <Row gap={4}><Ionicons name="images-outline" size={14} color="#fff" /><Text style={type.small}>{j.photos + j.videos}</Text></Row>
-            <Row gap={4}><Ionicons name="location-outline" size={14} color="#fff" /><Text style={type.small}>{j.placesCount}</Text></Row>
+            <Row gap={4}><Ionicons name="time-outline" size={14} color="#fff" /><Text style={onDark.small}>{formatDurationShort(activeDurationMs(j))}</Text></Row>
+            <Row gap={4}><Ionicons name="navigate-outline" size={14} color="#fff" /><Text style={onDark.small}>{formatKm(j.distanceKm)}</Text></Row>
+            <Row gap={4}><Ionicons name="images-outline" size={14} color="#fff" /><Text style={onDark.small}>{j.photos + j.videos}</Text></Row>
+            <Row gap={4}><Ionicons name="location-outline" size={14} color="#fff" /><Text style={onDark.small}>{j.placesCount}</Text></Row>
           </Row>
         </View>
       </LinearGradient>

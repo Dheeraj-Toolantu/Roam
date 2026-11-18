@@ -11,7 +11,7 @@ import { CITY_BY_ID } from '@/data/cities';
 import { useMe } from '@/lib/session';
 import { loadCityPosts } from '@/services/social';
 import { errorMessage } from '@/services/util';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, onDark } from '@/theme';
 import type { Post } from '@/types';
 
 const KIND_ICON: Record<string, IconName> = {
@@ -59,7 +59,7 @@ export default function CityScreen() {
       <Header title={city.name} subtitle={city.country} />
       <LinearGradient colors={city.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: space.xl, minHeight: 180, justifyContent: 'flex-end' }}>
         <Text style={{ fontSize: 56 }}>{city.emoji}</Text>
-        <Text style={[type.hero, { fontSize: 30 }]}>{city.name}</Text>
+        <Text style={[onDark.h1, { fontSize: 30 }]}>{city.name}</Text>
         <Text style={{ color: '#ffffffdd', fontSize: 15 }}>{city.tagline}</Text>
         <Row style={{ marginTop: 8 }}>
           <Ionicons name="flag" size={14} color="#fff" />

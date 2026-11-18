@@ -11,7 +11,7 @@ import { signOut, useMe, useSession } from '@/lib/session';
 import { subscribeMyJourneys } from '@/services/journeys';
 import { subscribeNotifications } from '@/services/notifications';
 import { loadSavedPosts, loadUserPosts } from '@/services/social';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, shadows } from '@/theme';
 import type { AppNotification, Journey, Post } from '@/types';
 
 export default function Profile() {
@@ -118,7 +118,7 @@ function Tile({ icon, label, onPress, testID }: { icon: IconName; label: string;
   return (
     <PressScale onPress={onPress} style={styles.tile} accessibilityRole="button" accessibilityLabel={label} testID={testID} scaleTo={0.92}>
       <IconBadge icon={icon} gradient={TILE_GRADIENT[icon as string] ?? 'violet'} size={38} />
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{label}</Text>
+      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{label}</Text>
     </PressScale>
   );
 }
@@ -126,5 +126,5 @@ function Tile({ icon, label, onPress, testID }: { icon: IconName; label: string;
 const TILE_GRADIENT: Record<string, IconGradient> = {'business': 'ocean', 'people': 'sunset', 'map': 'mint', 'images': 'candy', 'book': 'violet', 'create': 'sky', 'notifications': 'gold', 'shield': 'fire'};
 
 const styles = StyleSheet.create({
-  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder },
+  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, ...shadows.soft },
 });

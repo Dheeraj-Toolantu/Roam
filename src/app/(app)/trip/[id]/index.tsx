@@ -75,7 +75,7 @@ export default function TripDashboard() {
         <IconButton icon="settings-outline" onPress={() => router.push(`/trip/${id}/settings`)} accessibilityLabel="Trip settings" />
       </Row>
 
-      <LinearGradient colors={[group.colors?.[0] ?? colors.orange, group.colors?.[1] ?? colors.pink, '#0A0F2C']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1.4 }} style={{ borderRadius: radius.lg, padding: 18 }}>
+      <LinearGradient colors={[group.colors?.[0] ?? colors.orange, group.colors?.[1] ?? colors.pink, '#1B1838']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1.4 }} style={{ borderRadius: radius.lg, padding: 18 }}>
         <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900' }} testID="trip-title">
           {group.name} {city?.emoji ?? ''}
         </Text>
@@ -94,7 +94,7 @@ export default function TripDashboard() {
           <Pressable key={t.label} onPress={t.onPress} style={{ width: '31.5%' }} testID={t.testID} accessibilityRole="button" accessibilityLabel={t.label}>
             <Card style={{ alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, gap: 6 }}>
               <IconBadge icon={t.icon} gradient={t.gradient} size={40} />
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t.label}</Text>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t.label}</Text>
             </Card>
           </Pressable>
         ))}
@@ -328,7 +328,7 @@ function TimelineRow({ item, last, groupId, canDelete }: { item: TimelineItem; l
           <View style={{ marginTop: 8, gap: 6 }}>
             {comments.map((c) => (
               <Text key={c.id} style={type.small}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{c.authorName} </Text>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>{c.authorName} </Text>
                 {c.text} <Text style={type.tiny}>· {timeAgo(c.createdAt)}</Text>
               </Text>
             ))}

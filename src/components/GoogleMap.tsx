@@ -42,7 +42,7 @@ export function GoogleMap({ route = [], routes = [], markers = [], me, followMe,
   }, [followMe, me?.lat, me?.lng, me]);
 
   return (
-    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0D1438' }, style]} testID={testID}>
+    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#EEF0F7' }, style]} testID={testID}>
       <MapView
         ref={ref}
         provider={provider}

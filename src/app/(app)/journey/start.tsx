@@ -13,7 +13,7 @@ import { getJourney, startJourney } from '@/services/journeys';
 import { useLiveLocation } from '@/services/location';
 import { tracker } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
-import { colors, gradients, radius, type } from '@/theme';
+import { colors, gradients, radius, type, onDark } from '@/theme';
 import type { Group, Visibility } from '@/types';
 
 const VIS: { id: Visibility; label: string; icon: 'lock-closed' | 'people' | 'people-circle' | 'earth' }[] = [
@@ -71,8 +71,8 @@ export default function StartJourney() {
   return (
     <Screen edges={['top', 'bottom']}>
       <Header title="Start Your Journey" />
-      <LinearGradient colors={['#1E1B4B', '#3B0764']} style={{ borderRadius: radius.lg, padding: 18, marginBottom: 18 }}>
-        <Text style={[type.small, { color: '#DDD6FE', lineHeight: 20 }]}>
+      <LinearGradient colors={['#1B1838', '#3F3774']} style={{ borderRadius: radius.lg, padding: 18, marginBottom: 18 }}>
+        <Text style={[onDark.small, { color: '#ffffffe6', lineHeight: 20 }]}>
           ROAM will automatically track your locations, activities, photos and videos and create a cinematic story. Tracking is always visible
           and you can pause it any time.
         </Text>

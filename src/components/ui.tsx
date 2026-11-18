@@ -22,7 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { initials } from '../services/util';
 import { CountUp, IconBadge, PressScale, SkeletonCard, type IconGradient } from './motion';
-import { colors, gradients, radius, space, type } from '../theme';
+import { colors, gradients, radius, shadows, space, type } from '../theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -46,7 +46,7 @@ export function Screen({
 } & ScrollViewProps) {
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[padded && { padding: space.lg, paddingBottom: 120 }, contentStyle]}
+      contentContainerStyle={[padded && { padding: space.lg, paddingBottom: 40 }, contentStyle]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       {...rest}>
@@ -117,7 +117,7 @@ export function SectionTitle({ title, action, onAction }: { title: string; actio
       <Text style={type.h3}>{title}</Text>
       {!!action && (
         <Pressable onPress={onAction} hitSlop={8}>
-          <Text style={{ color: colors.cyan, fontWeight: '600' }}>{action}</Text>
+          <Text style={{ color: colors.brand, fontWeight: '700', fontSize: 13 }}>{action}</Text>
         </Pressable>
       )}
     </Row>
@@ -149,7 +149,7 @@ export function Logo({ size = 64 }: { size?: number }) {
           bottom: 0,
           width: size * 0.46,
           height: size * 0.5,
-          backgroundColor: colors.bg,
+          backgroundColor: '#fff',
           borderTopLeftRadius: size * 0.23,
           borderTopRightRadius: size * 0.23,
         }}
@@ -161,7 +161,7 @@ export function Logo({ size = 64 }: { size?: number }) {
 export function Wordmark({ size = 34 }: { size?: number }) {
   return (
     <Text style={{ fontSize: size, fontWeight: '900', color: colors.text, letterSpacing: 1 }}>
-      ROAM <Text style={{ color: colors.cyan, fontSize: size * 0.75 }}>2.0</Text>
+      RO<Text style={{ color: colors.brand }}>AM</Text>
     </Text>
   );
 }
@@ -201,7 +201,7 @@ export function Button({
           : variant === 'success'
             ? gradients.success
             : null;
-  const textColor = variant === 'light' ? '#111' : colors.text;
+  const textColor = grad ? '#fff' : variant === 'light' ? '#111' : colors.text;
   const inner = (
     <Row gap={8} style={{ justifyContent: 'center' }}>
       {loading ? <ActivityIndicator color={textColor} /> : icon ? <Ionicons name={icon} size={small ? 16 : 18} color={textColor} /> : null}
@@ -228,7 +228,7 @@ export function Button({
           style={[
             styles.btn,
             { height: h },
-            variant === 'secondary' && { backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.cardBorder },
+            variant === 'secondary' && { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.cardBorder, ...shadows.soft },
             variant === 'ghost' && { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.cardBorder },
             variant === 'light' && { backgroundColor: '#fff' },
           ]}>
@@ -319,9 +319,9 @@ export function Chip({ label, active, onPress, icon, testID }: { label: string; 
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
       onPress={onPress}
-      style={[styles.chip, active && { backgroundColor: colors.cyan, borderColor: colors.cyan }]}>
-      {icon && <Ionicons name={icon} size={14} color={active ? '#0A0F2C' : colors.textMuted} />}
-      <Text style={{ color: active ? '#0A0F2C' : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{label}</Text>
+      style={[styles.chip, active && { backgroundColor: colors.ink, borderColor: colors.ink }]}>
+      {icon && <Ionicons name={icon} size={14} color={active ? '#fff' : colors.textMuted} />}
+      <Text style={{ color: active ? '#fff' : colors.text, fontWeight: '700', fontSize: 13 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -401,7 +401,7 @@ export function Avatar({ name, uri, size = 40, ring }: { name?: string | null; u
   if (!ring) return inner;
   return (
     <LinearGradient colors={gradients.brand} style={{ padding: 2, borderRadius: size }}>
-      <View style={{ padding: 2, backgroundColor: colors.bg, borderRadius: size }}>{inner}</View>
+      <View style={{ padding: 2, backgroundColor: '#fff', borderRadius: size }}>{inner}</View>
     </LinearGradient>
   );
 }
@@ -410,7 +410,7 @@ export function AvatarStack({ names, max = 4, size = 30 }: { names: string[]; ma
   return (
     <Row gap={0}>
       {names.slice(0, max).map((n, i) => (
-        <View key={n + i} style={{ marginLeft: i ? -size / 3 : 0, borderWidth: 2, borderColor: colors.bg, borderRadius: size }}>
+        <View key={n + i} style={{ marginLeft: i ? -size / 3 : 0, borderWidth: 2, borderColor: '#fff', borderRadius: size }}>
           <Avatar name={n} size={size} />
         </View>
       ))}
@@ -520,7 +520,7 @@ export function ErrorText({ text }: { text?: string | null }) {
   return (
     <View accessibilityRole="alert" style={styles.error}>
       <Ionicons name="alert-circle" size={16} color={colors.red} />
-      <Text style={{ color: '#FCA5A5', flex: 1, fontSize: 13 }}>{text}</Text>
+      <Text style={{ color: '#BE123C', flex: 1, fontSize: 13 }}>{text}</Text>
     </View>
   );
 }
@@ -560,9 +560,9 @@ export function QuickAction({
 }) {
   return (
     <PressScale testID={testID} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }} scaleTo={0.92}>
-      <LinearGradient colors={[c[0] + '40', c[1] + '1F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quick}>
+      <LinearGradient colors={['#FFFFFF', c[0] + '14']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quick}>
         <IconBadge icon={icon} gradient={gradient ?? QUICK_GRADIENT[label] ?? 'violet'} size={42} />
-        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center', letterSpacing: 0.2 }} numberOfLines={2}>
+        <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800', textAlign: 'center', letterSpacing: 0.2 }} numberOfLines={2}>
           {label}
         </Text>
       </LinearGradient>
@@ -572,7 +572,7 @@ export function QuickAction({
 
 export function useBottomPad() {
   const insets = useSafeAreaInsets();
-  return insets.bottom + 90;
+  return insets.bottom + 24;
 }
 
 export type { PressableProps };
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   maxWidth: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: space.lg },
   btn: { borderRadius: radius.pill, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
-  btnGlow: { shadowColor: '#8B5CF6', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  btnGlow: shadows.glow,
   iconBtn: {
     width: 40,
     height: 40,
@@ -591,6 +591,7 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.soft,
   },
   badge: {
     position: 'absolute',
@@ -599,7 +600,9 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.red,
+    backgroundColor: colors.brand,
+    borderWidth: 2,
+    borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -610,6 +613,7 @@ const styles = StyleSheet.create({
     padding: space.lg,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+    ...shadows.soft,
   },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, alignSelf: 'flex-start' },
   chip: {
@@ -627,7 +631,7 @@ const styles = StyleSheet.create({
   segmentItem: { paddingVertical: 9, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', borderRadius: radius.pill },
   segmentText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
   segmentTextOn: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  more: { backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg },
+  more: { backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -637,7 +641,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  switch: { width: 46, height: 26, borderRadius: 13, backgroundColor: colors.cardAlt, padding: 3 },
+  switch: { width: 46, height: 26, borderRadius: 13, backgroundColor: '#D4D2EC', padding: 3 },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   error: {
@@ -660,6 +664,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     minHeight: 92,
+    ...shadows.soft,
   },
   quickIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 });

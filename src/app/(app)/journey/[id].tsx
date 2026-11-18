@@ -18,6 +18,7 @@ import {
   deleteActivity,
   deleteJourney,
   end,
+  getJourney,
   pause,
   resume,
   subscribeActivities,
@@ -26,6 +27,7 @@ import {
   updateJourney,
 } from '@/services/journeys';
 import { createPost } from '@/services/social';
+import { postFinishedJourney } from '@/services/travelStories';
 import { useLiveLocation } from '@/services/location';
 import { tracker, type TrackerState } from '@/services/tracker';
 import { errorMessage } from '@/services/util';
@@ -95,6 +97,9 @@ export default function JourneyScreen() {
       await end(j);
       tracker.dismissEndSuggestion();
       ended = true;
+      // The journey leaves the live-story row and lands on the travel feed as a story post.
+      const done = await getJourney(j.id).catch(() => null);
+      await postFinishedJourney(me, done ?? { ...j, status: 'completed', endedAt: Date.now() }).catch(() => null);
     });
     // Trip over → go straight to the auto-generated cinematic story (only if ending succeeded)
     if (ended) router.push(`/magic?journeyId=${j.id}&fresh=1`);
@@ -178,7 +183,7 @@ export default function JourneyScreen() {
           <Row style={{ marginBottom: 14 }}>
             <Ionicons name="time-outline" size={20} color={colors.cyan} />
             <View>
-              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] }} testID="journey-timer">
+              <Text style={{ color: colors.text, fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] }} testID="journey-timer">
                 {formatDuration(duration)}
               </Text>
               <Text style={type.tiny}>{j.status === 'paused' ? 'Journey paused' : 'Journey active'}</Text>

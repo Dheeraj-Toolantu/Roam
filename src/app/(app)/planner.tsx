@@ -7,7 +7,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { Button, Card, Chip, Header, InfoText, Row, Screen, SectionTitle, type IconName } from '@/components/ui';
 import { CITIES, CITY_BY_ID } from '@/data/cities';
 import { planTrip } from '@/logic/planner';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, onDark } from '@/theme';
 
 type Style = 'relaxed' | 'culture' | 'adventure' | 'food';
 const STYLES: { id: Style; label: string; icon: IconName }[] = [
@@ -54,7 +54,7 @@ export default function PlannerScreen() {
 
       <LinearGradient colors={city.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.lg, padding: space.lg, marginTop: space.xl }}>
         <Text style={{ fontSize: 32 }}>{city.emoji}</Text>
-        <Text style={type.h2}>
+        <Text style={onDark.h2}>
           {days} {days === 1 ? 'day' : 'days'} in {city.name}
         </Text>
         <Text style={{ color: '#ffffffdd' }}>{city.tagline}</Text>

@@ -105,7 +105,7 @@ function CrewCard({ g }: { g: Group }) {
   const city = g.destinationCityId ? CITY_BY_ID[g.destinationCityId] : null;
   return (
     <Pressable onPress={() => router.push(`/trip/${g.id}`)} style={{ marginBottom: 14 }} testID="crew-card">
-      <LinearGradient colors={[g.colors?.[0] ?? colors.orange, g.colors?.[1] ?? colors.pink, '#0A0F2C']} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1.3 }} style={{ borderRadius: radius.lg, padding: 18, minHeight: 150, justifyContent: 'space-between' }}>
+      <LinearGradient colors={[g.colors?.[0] ?? colors.orange, g.colors?.[1] ?? colors.pink, '#1B1838']} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1.3 }} style={{ borderRadius: radius.lg, padding: 18, minHeight: 150, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>
             {g.name} {city?.emoji ?? ''}

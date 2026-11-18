@@ -70,7 +70,7 @@ export default function SettleUp() {
                 <Text style={type.body}>{name(t.fromUid)}</Text>
                 <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
                 <Text style={[type.body, { flex: 1 }]}>{name(t.toUid)}</Text>
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{formatMoney(t.amount)}</Text>
+                <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{formatMoney(t.amount)}</Text>
               </Row>
               {mine && !waiting && (
                 <Button
@@ -109,7 +109,7 @@ export default function SettleUp() {
                 <Text style={[type.body, { flex: 1 }]}>
                   {name(s.fromUid)} → {name(s.toUid)}
                 </Text>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{formatMoney(s.amount)}</Text>
+                <Text style={{ color: colors.text, fontWeight: '800' }}>{formatMoney(s.amount)}</Text>
               </Row>
               <Text style={[type.tiny, { marginTop: 4 }]}>Recorded by {name(s.recordedBy)} · {timeAgo(s.createdAt)}</Text>
               {s.toUid === me.uid ? (
@@ -144,7 +144,7 @@ export default function SettleUp() {
                 {s.status === 'confirmed' ? 'Confirmed' : 'Not received'} by {name(s.confirmedBy ?? s.toUid)} · {timeAgo(s.confirmedAt ?? s.createdAt)}
               </Text>
             </View>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{formatMoney(s.amount)}</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>{formatMoney(s.amount)}</Text>
           </Row>
         ))
       )}

@@ -59,7 +59,7 @@ export function RouteMap({
   const cur = current ? proj(current) : null;
 
   return (
-    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0D1438' }, style]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+    <View style={[{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#EEF0F7' }, style]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
       <Svg width={w} height={height}>
         <Defs>
           <RadialGradient id="glow" cx="50%" cy="40%" r="70%">

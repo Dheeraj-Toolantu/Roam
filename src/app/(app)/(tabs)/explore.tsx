@@ -28,7 +28,7 @@ import { getLiveWorld } from '@/services/journeys';
 import { loadPublicPosts } from '@/services/social';
 import { findByUsername, follow, getFollowingIds, listPublicTravellers, unfollow } from '@/services/users';
 import { errorMessage } from '@/services/util';
-import { colors, radius, space, type } from '@/theme';
+import { colors, radius, space, type, onDark, shadows } from '@/theme';
 import type { Post, UserProfile } from '@/types';
 
 type Mode = 'explore' | 'live' | 'trending';
@@ -123,7 +123,7 @@ export default function ExploreScreen() {
         <Text style={[type.h1, { flex: 1 }]}>Explore</Text>
         <Pressable onPress={() => router.push('/planner')} accessibilityLabel="Smart Trip Planner" testID="open-planner" style={styles.plannerBtn}>
           <Ionicons name="sparkles" size={16} color={colors.yellow} />
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Planner</Text>
+          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }}>Planner</Text>
         </Pressable>
       </Row>
 
@@ -201,10 +201,10 @@ export default function ExploreScreen() {
 
           <SectionTitle title="City Memory Map" />
           <Pressable onPress={() => router.push('/memory-map')} testID="memory-map-card">
-            <LinearGradient colors={['#1E3A8A', '#4C1D95']} style={styles.memoryCard}>
+            <LinearGradient colors={['#1B1838', '#3F3774']} style={styles.memoryCard}>
               <Ionicons name="location" size={34} color={colors.pink} />
-              <Text style={[type.h3, { marginTop: 6 }]}>Explore real experiences</Text>
-              <Text style={type.small}>Public memories from travellers around the world — city-level, never precise.</Text>
+              <Text style={[onDark.h3, { marginTop: 6 }]}>Explore real experiences</Text>
+              <Text style={onDark.small}>Public memories from travellers around the world — city-level, never precise.</Text>
             </LinearGradient>
           </Pressable>
 
@@ -318,9 +318,9 @@ export default function ExploreScreen() {
 
 function CategoryTile({ icon, label, active, onPress }: { icon: IconName; label: string; active?: boolean; onPress: () => void }) {
   return (
-    <PressScale onPress={onPress} style={[styles.tile, active && { borderColor: colors.cyan, backgroundColor: colors.cardAlt }]} accessibilityLabel={label} scaleTo={0.92}>
+    <PressScale onPress={onPress} style={[styles.tile, active && { borderColor: '#FFC9AA', backgroundColor: colors.brandSoft }]} accessibilityLabel={label} scaleTo={0.92}>
       <IconBadge icon={icon} gradient={TILE_GRADIENT[icon as string] ?? 'violet'} size={38} />
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>{label}</Text>
     </PressScale>
   );
 }
@@ -362,7 +362,7 @@ const TILE_GRADIENT: Record<string, IconGradient> = {'business': 'ocean', 'peopl
 const styles = StyleSheet.create({
   plannerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.cardBorder },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder },
-  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder },
+  tile: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, ...shadows.soft },
   cityCard: { width: 130, height: 160, borderRadius: radius.lg, padding: space.md, justifyContent: 'space-between' },
   memoryCard: { borderRadius: radius.lg, padding: space.lg, minHeight: 130, justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
